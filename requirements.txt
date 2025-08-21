@@ -1,0 +1,91 @@
+# =====================
+# Core Python Libraries
+# =====================
+altgraph==0.17.4
+annotated-types==0.7.0
+future==1.0.0
+numpy==2.0.2
+python-dateutil==2.9.0.post0
+typing_extensions==4.12.2
+wcwidth==0.2.13
+pybreaker==1.4.0
+
+# =====================
+# Django & Extensions
+# =====================
+Django==4.2.16
+django-celery-beat==2.8.1
+django-timezone-field==7.0
+djangorestframework==3.15.2
+django_celery_results==2.5.1
+sqlparse==0.5.1
+tzdata==2025.2
+whitenoise==6.9.0
+
+# =====================
+# Celery & Task Queue
+# =====================
+amqp==5.3.1
+billiard==4.2.1
+celery==5.5.3
+flower==2.0.1
+vine==5.1.0
+
+# =====================
+# Database Drivers
+# =====================
+
+# =====================
+# Redis & Caching
+# =====================
+redis==6.1.0
+async-timeout==5.0.1
+
+# =====================
+# Web & HTTP
+# =====================
+requests==2.32.3
+urllib3==2.2.3
+certifi==2024.8.30
+charset-normalizer==3.4.0
+six==1.16.0
+
+# =====================
+# Logging, Monitoring & Sentry
+# =====================
+sentry-sdk==2.22.0
+
+
+
+# =====================
+# CLI & Shell Utilities
+# =====================
+click==8.1.7
+click-didyoumean==0.3.1
+click-plugins==1.1.1
+click-repl==0.3.0
+prompt_toolkit==3.0.48
+
+# =====================
+# Gunicorn & WSGI
+# =====================
+gunicorn==23.0.0
+
+# =====================
+# Tornado & Async
+# =====================
+tornado==6.4.2
+
+# =====================
+# Miscellaneous
+# =====================
+humanize==4.11.0
+python-crontab==3.2.0
+pydevd-pycharm~=223.8836.43
+pydantic==2.9.2
+pydantic_core==2.23.4
+
+# =====================
+# Environment Management
+# =====================
+python-dotenv==1.0.1

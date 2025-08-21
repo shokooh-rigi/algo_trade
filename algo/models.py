@@ -1,0 +1,526 @@
+from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.db import models, transaction
+import uuid
+import logging
+from decimal import Decimal
+
+from algo.enums import OrderType, OrderSide, OrderStatus, DesiredBalanceAsset
+from algo_trade.base_model import BaseModel, SoftDeleteModel
+from providers.providers_enum import ProviderEnum
+
+logger = logging.getLogger(__name__)
+
+class Deal(BaseModel):
+    pass
+
+
+class Order(BaseModel):
+    store_client = models.ForeignKey(
+        'StoreClient',
+        on_delete=models.SET_NULL,
+        default=None,
+        null=True,
+        blank=True,
+        related_name='orders',
+    )
+    strategy_result = models.ForeignKey(
+        to=Deal,
+        on_delete=models.SET_NULL,
+        default=None,
+        related_name="orders",
+        null=True,
+        blank=True,
+
+    )
+    symbol = models.CharField(
+        max_length=20,
+        help_text="The trading pair symbol (e.g., BTCUSDT)."
+    )
+    type = models.CharField(
+        max_length=10,
+        choices=OrderType.CHOICES,
+        help_text="The type of order (e.g., LIMIT or MARKET)."
+    )
+    side = models.CharField(
+        max_length=5,
+        choices=OrderSide.CHOICES,
+        help_text="The side of the order (BUY or SELL)."
+    )
+    price = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        null=True,
+        blank=True,
+        help_text="The price at which the order should be executed."
+    )
+    quantity = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        null=True,
+        blank=True,
+        help_text="The quantity of the asset to be traded."
+    )
+    orig_qty = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        null=True,
+        blank=True,
+        help_text="The original quantity as a string."
+    )
+    orig_sum = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        null=True,
+        blank=True,
+        help_text="The original sum as a string."
+    )
+    executed_price = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        null=True,
+        blank=True,
+        help_text="The executed price as a string."
+    )
+    executed_qty = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        null=True,
+        blank=True,
+        help_text="The executed quantity as a string."
+    )
+    executed_sum = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        null=True,
+        blank=True,
+        help_text="The executed sum as a string."
+    )
+    executed_percent = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="The percentage of the order that has been executed."
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=OrderStatus.CHOICES,
+        default=OrderStatus.NEW,
+        help_text="The status of the order (e.g., NEW, FILLED, CANCELED)."
+    )
+    active = models.BooleanField(
+        null=True,
+        blank=True,
+        help_text="Whether the order is active."
+    )
+    client_order_id = models.CharField(
+        max_length=100,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text="The client order ID."
+    )
+    timestamp_created_at = models.CharField(
+        null=True,
+        blank=True,
+        max_length=100,
+        help_text="The timestamp when the order was created."
+    )
+    should_cancel = models.BooleanField(
+        default=False,
+        help_text="Flag to indicate if the order should be canceled."
+    )
+
+    def __str__(self):
+        return f"Order {self.client_order_id} ({self.symbol}) - {self.status}"
+
+
+class StoreClient(SoftDeleteModel, BaseModel):
+    """
+    Represents a client in the system who is associated with a specific provider.
+
+    Attributes:
+        api_key (str): The API key for authenticating the client.
+        api_secret (str): The optional API secret for the client.
+        user_id (UUID): A unique identifier for the client, automatically generated.
+        title (str): An optional descriptive title for the client.
+        provider (str): The type of provider (e.g., WALLEX), selected from ProviderEnum choices.
+    """
+    name = models.CharField(
+        max_length=100,
+        unique=True,
+        default=None,
+        help_text="The name of the client."
+    )
+    api_key = models.CharField(
+        max_length=150,
+        unique=True,
+        help_text="The API key for this client.",
+    )
+    api_secret = models.CharField(
+        max_length=150,
+        null=True,
+        blank=True,
+        help_text="The API secret for this client.",
+    )
+    user_id = models.UUIDField(
+        unique=True,
+        default=uuid.uuid4,  # Automatically generate a UUID for new instances
+        editable=False,  # Prevent manual editing of this field
+        help_text="A unique identifier for the client, automatically generated.",
+    )
+    title = models.CharField(
+        max_length=250,
+        blank=True,
+        null=True,
+        help_text="An optional descriptive title for this client.",
+    )
+    provider = models.CharField(
+        max_length=50,
+        choices=[(provider.value, provider.name) for provider in ProviderEnum],
+        default=ProviderEnum.WALLEX.value,
+        help_text="The provider type for this client.",
+    )
+
+    def __str__(self):
+        return f"StoreClient {self.name} for provider {self.provider}"
+
+    @classmethod
+    def get_api_keys_by_provider(cls, provider: str) -> str:
+        """
+        Retrieve all API keys for clients associated with a specific provider.
+
+        Args:
+            provider (str): The provider type (e.g., WALLEX).
+
+        Returns:
+            list: A list of API keys for the specified provider.
+
+        Raises:
+            ValueError: If no API keys are found for the given provider.
+        """
+        try:
+            api_key = cls.objects.filter(
+                provider=provider
+            ).values_list(
+                'api_key',
+                flat=True
+            ).first()
+            if not api_key:
+                raise ValueError(f"No API keys found for provider: {provider}")
+            return ""
+        except Exception as e:
+            logger.error(f"Error retrieving API keys for provider {provider}: {e}")
+            return ''
+
+
+class Asset(BaseModel):
+    """
+    Represent an asset in the system.
+    """
+    name = models.CharField(
+        max_length=20,
+        unique=True,
+        help_text="The asset name (e.g., BTC, USDT)."
+    )
+
+    def __str__(self):
+        return f"{self.name}"
+
+    class Meta:
+        verbose_name = "Asset"
+        verbose_name_plural = "Assets"
+        ordering = ["name"]
+    # todo: in future when use another provider, we need to add mapper to separate different spell of asset name
+
+
+class AccountBalance(BaseModel):
+    """
+    Represents the balance of a StoreClient for a specific market and asset.
+
+    Attributes:
+        store_client (ForeignKey): The StoreClient associated with this balance.
+        asset (ForeignKey): The asset (e.g., BTC, USDT).
+        total_balance (Decimal): The total balance (available + locked).
+        unbalance_threshold (int): Percentage threshold for balance alerts (1-99%).
+    """
+    store_client = models.ForeignKey(
+        'StoreClient',
+        on_delete=models.CASCADE,
+        related_name='balances',
+        help_text="The StoreClient associated with this balance."
+    )
+    asset = models.ForeignKey(
+        'Asset',
+        on_delete=models.CASCADE,
+        related_name='balances',
+        help_text="The asset name (e.g., BTC, USDT).",
+    )
+    total_balance = models.DecimalField(
+        max_digits=20,
+        decimal_places=6,
+        default=0,
+        help_text="The total balance (available + locked)."
+    )
+    unbalance_threshold = models.IntegerField(
+        default=1,
+        validators=[
+            MinValueValidator(1, message="Value must be greater than 0."),
+            MaxValueValidator(99, message="Value must be less than 100."),
+        ],
+        help_text="Percentage threshold (1-99%) for balance alerts."
+    )
+    def __str__(self):
+        return f"Balance for {self.store_client.name} - {self.asset}"
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['store_client', 'asset'],
+                name='unique_store_client_asset'
+            )
+        ]
+
+    def clean(self):
+        """Validate unbalance_threshold is between 1-99%"""
+        if not 1 <= self.unbalance_threshold <= 99:
+            raise ValidationError("Unbalance threshold must be between 1 and 99")
+
+
+class Market(BaseModel):
+    """
+    Model to store market information from API.
+   """
+    symbol = models.CharField(
+        default="Unknown",
+        max_length=50,
+        unique=True,
+        help_text="The trading pair symbol (e.g., 'BTCUSDT')."
+    )
+    base_asset = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        help_text="The base asset of the market (e.g., 'BTC')."
+    )
+    base_asset_precision = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="The decimal precision of the base asset."
+    )
+    quote_asset = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        help_text="The quote asset of the market (e.g., 'USDT')."
+    )
+    quote_precision = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="The decimal precision of the quote asset."
+    )
+    fa_name = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="The Persian name of the market."
+    )
+    fa_base_asset = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="The Persian name of the base asset."
+    )
+    fa_quote_asset = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="The Persian name of the quote asset."
+    )
+    step_size = models.IntegerField(
+        default=1,
+        help_text="The step size for volume adjustments."
+    )
+    tick_size = models.IntegerField(
+        default=1,
+        help_text="The step size for price adjustments."
+    )
+    min_qty = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="The minimum quantity for trades."
+    )
+    min_notional = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="The minimum trade amount in the quote asset.")
+    timestamp_created_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="The timestamp when the market was created."
+    )
+
+    def __str__(self):
+        return self.symbol
+
+    def adjust_price(self, price):
+        """
+        Adjust the given price to match the tick size requirement for this market.
+
+        Args:
+            price (float): The price to adjust.
+
+        Returns:
+            float: The adjusted price.
+        """
+        if self.tick_size :
+            adjusted_price = round(number=price, ndigits=self.tick_size)
+            return adjusted_price
+        return int(price)
+
+    def adjust_quantity(self, quantity:float):
+        """
+        Adjust the given quantity to be within the step size and allowable range for this market.
+
+        Args:
+            quantity (float): The quantity to adjust.
+
+        Returns:
+            float: The adjusted quantity.
+        """
+        if self.min_qty:
+            if quantity < self.min_qty:
+                return self.min_qty
+        if self.step_size:
+                adjusted_quantity = round(number=quantity, ndigits=self.step_size)
+                return adjusted_quantity
+        return int(quantity)
+
+    def adjust_min_notional(self, amount):
+        """
+        Validate if the price value meets the minimum notional requirement.
+
+        Args:
+            amount (float): The amount to validate.
+
+        Returns:
+           valid amount.
+        """
+        if amount >= self.min_notional:
+            return amount
+        else:
+            return self.min_notional
+
+    def adjust_min_qty(self, quantity):
+        """
+        Validate if the price value meets the minimum qty requirement.
+
+        Args:
+            quantity (float): The quantity  to validate.
+
+        Returns:
+           valid quantity.
+        """
+        if quantity >= self.min_qty:
+            return quantity
+        else:
+            return self.min_qty
+
+    @classmethod
+    def create_or_update_instance(cls, symbol_name, **kwargs):
+        """
+        Create or update an instance of the Market model.
+
+        Args:
+            symbol_name (str): The symbol of the market (e.g., 'BTCUSDT').
+            **kwargs: Additional fields to update or set.
+
+        Returns:
+            market (Market): The created or updated Market instance.
+            created (bool): True if created, False if updated.
+        """
+        # Attempt to get the existing market instance by its symbol
+        market = cls.objects.filter(symbol=symbol_name).first()
+
+        if market:
+            # If the market exists, update its fields using .update() method
+            cls.objects.filter(symbol=symbol_name).update(**kwargs)
+            return market, False  # False indicates the instance was updated
+        else:
+            # If the market does not exist, create a new instance
+            market = cls.objects.create(symbol=symbol_name, **kwargs)
+            return market, True  # True indicates the instance was created
+
+
+class AdminSystemConfig(BaseModel):
+    """
+    Model to manage admin system configurations.
+    """
+    strategy_processor_batch_size = models.PositiveIntegerField(
+        default=1,
+        help_text="Batch size for strategy processor."
+    )
+    historical_data_duration_in_minutes = models.PositiveIntegerField(
+        default=20,
+        help_text="Duration time (in minutes) to fetch historical data for strategies."
+    )
+    strategy_depth_orderbook = models.PositiveIntegerField(
+        default=10,
+        help_text="Depth of the order book for strategies."
+    )
+    wallex_tether_order_amount = models.PositiveIntegerField(
+        default=20,
+        help_text="Tether amount for ordering in Wallex."
+    )
+    put_same_order_base_in_every_order = models.BooleanField(
+        default=True,
+        help_text="Whether to put the same order base in every order."
+    )
+    slack_user_ids = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of Slack user IDs to notify (e.g., ['U07RBV7P8D6', 'U87654321'])."
+    )
+    cancel_orphan_orders = models.BooleanField(
+        default=False,
+        help_text="Whether to cancel orphan orders."
+    )
+    delete_canceled_orders = models.BooleanField(
+        default=False,
+        help_text="Whether to delete canceled orders."
+    )
+    days_count_canceled_orders = models.PositiveIntegerField(
+        default=3,
+        help_text="Number of days to keep canceled orders before deletion."
+    )
+    kill_switch = models.BooleanField(
+        default=False,
+        help_text="Global kill switch to stop all strategies and tasks of system."
+    )
+    desired_balance_asset_in_usdt_tmn_market = models.CharField(
+        choices=DesiredBalanceAsset.CHOICES,
+        help_text="Desired balance asset in USDT/TMN market.",
+        default=DesiredBalanceAsset.USDT,
+        max_length=5,
+    )
+
+    class Meta:
+        verbose_name = "Admin System Config"
+        verbose_name_plural = "Admin System Configs"
+
+    def __str__(self):
+        return "Admin System Configurations"
+
+    @classmethod
+    def get_instance(cls):
+        """
+        Ensures only one instance of the model exists.
+        Creates one if none exists.
+        """
+        instance, _ = cls.objects.get_or_create(id=1)
+        return instance
+
+    def get_value(self, key):
+        """
+        Retrieves the value of a specific configuration key.
+        """
+        return getattr(self, key, None)
