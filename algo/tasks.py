@@ -1,12 +1,6 @@
 import logging
-import time
-import sentry_sdk
 
 from celery import shared_task
-from django.db import models
-from django.utils import timezone
-from pytz import timezone as pytz_timezone
-from datetime import timedelta
 from celery.exceptions import MaxRetriesExceededError
 
 from algo.models import AdminSystemConfig
