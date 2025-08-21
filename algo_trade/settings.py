@@ -90,7 +90,7 @@ DATABASES = {
         'NAME': os.getenv('DATABASE_NAME', 'algo_db'),
         'USER': os.getenv('DATABASE_USER', 'postgres'),
         'PASSWORD': os.getenv('DATABASE_PASSWORD', 'your_password'),
-        'HOST': os.getenv('DATABASE_HOST', 'postgres_db'),
+        'HOST': os.getenv('DATABASE_HOST', 'localhost'),
         'PORT': os.getenv('DATABASE_PORT', 5432),
     }
 }
