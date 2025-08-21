@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 class Deal(BaseModel):
     pass
+    #todo: complete it
 
 
 class Order(BaseModel):
@@ -24,14 +25,13 @@ class Order(BaseModel):
         blank=True,
         related_name='orders',
     )
-    strategy_result = models.ForeignKey(
+    deal = models.ForeignKey(
         to=Deal,
         on_delete=models.SET_NULL,
         default=None,
         related_name="orders",
         null=True,
         blank=True,
-
     )
     symbol = models.CharField(
         max_length=20,
@@ -217,6 +217,12 @@ class Asset(BaseModel):
     """
     Represent an asset in the system.
     """
+    store_client = models.ForeignKey(
+        'StoreClient',
+        on_delete=models.CASCADE,
+        related_name='balances',
+        help_text="The StoreClient associated with this balance."
+    )
     name = models.CharField(
         max_length=20,
         unique=True,
@@ -230,7 +236,6 @@ class Asset(BaseModel):
         verbose_name = "Asset"
         verbose_name_plural = "Assets"
         ordering = ["name"]
-    # todo: in future when use another provider, we need to add mapper to separate different spell of asset name
 
 
 class AccountBalance(BaseModel):
@@ -290,6 +295,12 @@ class Market(BaseModel):
     """
     Model to store market information from API.
    """
+    store_client = models.ForeignKey(
+        'StoreClient',
+        on_delete=models.CASCADE,
+        related_name='balances',
+        help_text="The StoreClient associated with this balance."
+    )
     symbol = models.CharField(
         default="Unknown",
         max_length=50,
@@ -459,10 +470,6 @@ class AdminSystemConfig(BaseModel):
         default=1,
         help_text="Batch size for strategy processor."
     )
-    historical_data_duration_in_minutes = models.PositiveIntegerField(
-        default=20,
-        help_text="Duration time (in minutes) to fetch historical data for strategies."
-    )
     strategy_depth_orderbook = models.PositiveIntegerField(
         default=10,
         help_text="Depth of the order book for strategies."
@@ -474,23 +481,6 @@ class AdminSystemConfig(BaseModel):
     put_same_order_base_in_every_order = models.BooleanField(
         default=True,
         help_text="Whether to put the same order base in every order."
-    )
-    slack_user_ids = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="List of Slack user IDs to notify (e.g., ['U07RBV7P8D6', 'U87654321'])."
-    )
-    cancel_orphan_orders = models.BooleanField(
-        default=False,
-        help_text="Whether to cancel orphan orders."
-    )
-    delete_canceled_orders = models.BooleanField(
-        default=False,
-        help_text="Whether to delete canceled orders."
-    )
-    days_count_canceled_orders = models.PositiveIntegerField(
-        default=3,
-        help_text="Number of days to keep canceled orders before deletion."
     )
     kill_switch = models.BooleanField(
         default=False,
