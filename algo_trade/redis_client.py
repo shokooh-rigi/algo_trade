@@ -2,7 +2,7 @@ import redis
 import json
 import logging
 
-from spread_root import settings
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 

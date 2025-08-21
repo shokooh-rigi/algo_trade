@@ -1,7 +1,8 @@
 from django.db import models
 from django.utils import timezone
 
-from spread_root.base_manager import SoftDeleteManager
+from algo_trade.base_manager import SoftDeleteManager
+
 
 class BaseModel(models.Model):
     """
