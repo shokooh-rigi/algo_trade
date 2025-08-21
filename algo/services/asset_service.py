@@ -37,8 +37,10 @@ class AssetService:
             for asset_key, asset_details in assets.items():
                 asset, created = Asset.objects.update_or_create(
                     name=asset_key,
+                    provider_name=provider_name,
                     defaults={
-                        "name": asset_key,  # Ensure the asset name is stored
+                        "name": asset_key,
+                        "provider_name": provider_name,
                     }
                 )
                 logger.info(f"{'Created' if created else 'Updated'} Asset record for asset: {asset_key}")

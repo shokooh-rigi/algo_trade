@@ -217,11 +217,11 @@ class Asset(BaseModel):
     """
     Represent an asset in the system.
     """
-    store_client = models.ForeignKey(
-        'StoreClient',
-        on_delete=models.CASCADE,
-        related_name='balances',
-        help_text="The StoreClient associated with this balance."
+    provider = models.CharField(
+        max_length=50,
+        choices=[(provider.value, provider.name) for provider in ProviderEnum],
+        default=ProviderEnum.WALLEX.value,
+        help_text="The provider type for this client.",
     )
     name = models.CharField(
         max_length=20,
@@ -295,11 +295,11 @@ class Market(BaseModel):
     """
     Model to store market information from API.
    """
-    store_client = models.ForeignKey(
-        'StoreClient',
-        on_delete=models.CASCADE,
-        related_name='balances',
-        help_text="The StoreClient associated with this balance."
+    provider = models.CharField(
+        max_length=50,
+        choices=[(provider.value, provider.name) for provider in ProviderEnum],
+        default=ProviderEnum.WALLEX.value,
+        help_text="The provider type for this client.",
     )
     symbol = models.CharField(
         default="Unknown",

@@ -21,6 +21,7 @@ class StoreMarketsFetcherService:
             provider_config (Dict[str, Any]): Configuration dictionary for the provider.
         """
         try:
+            self.provider_name = provider_name
             self.provider: IProvider = ProviderFactory.create_provider(provider_name, provider_config)
             logger.info(f"Initialized provider: {provider_name}")
         except ValueError as e:
@@ -39,7 +40,8 @@ class StoreMarketsFetcherService:
             # Iterate over symbols and store in the Market model
             for symbol_name, symbol_data in symbols.items():
                 market, created = Market.objects.get_or_create(
-                    name=symbol_name
+                    name=symbol_name,
+                    provider_name =self.provider_name,
                 )
                 if created:
                     logger.info(f"Created new Market record for symbol: {symbol_name}")

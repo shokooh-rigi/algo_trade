@@ -46,12 +46,12 @@ app.conf.beat_schedule = {
         'task': 'strategy_processor.tasks.fetch_and_store_markets',
         'schedule': crontab(day_of_week='1', hour='15', minute='30'),
         'args': (ProviderEnum.WALLEX.value, {'config_key': 'config_value'}),
-    },
+    }, #todo run and store markets related for each provider in ProviderEnum
     'asset_data_store': {
         'task': 'order_management.tasks.fetch_and_store_assets',
         'schedule': crontab(day_of_week='1', hour='13', minute='30'),
         'args': (ProviderEnum.WALLEX.value, {'config_key': 'config_value'}),
-    },
+    }, #todo run and store assets for each provider in ProviderEnum
     'strategy_processor': {
         'task': 'strategy_processor.tasks.run_all_strategies',
         'schedule': timedelta(seconds=30),
