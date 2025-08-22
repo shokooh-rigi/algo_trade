@@ -223,7 +223,6 @@ def dispatch_deal_processing_task(self):
         logger.error(f"{settings.DEAL_PROCESSING_LOG_PREFIX} Error in dispatch_deal_processing_task: {e}", exc_info=True)
 
 
-
 @shared_task(bind=True)
 def inquiry_orders_task(self):
     """
