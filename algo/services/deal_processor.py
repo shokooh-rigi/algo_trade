@@ -6,8 +6,33 @@ from algo.models import Deal, Order, StoreClient, AdminSystemConfig, Market
 from providers.provider_factory import ProviderFactory
 from algo.enums import OrderType
 from providers.schemas.wallex_schemas import OrderResponseSchema, \
-    OrderResultSchema  # Assuming this schema is consistent for all providers
-from pydantic import ValidationError  # Import ValidationError for handling pydantic errors
+    OrderResultSchema
+from pydantic import ValidationError
+
+from datetime import datetime, timedelta
+import pandas as pd
+from typing import Dict, Any, Optional, List
+import logging
+from decimal import Decimal, getcontext
+import time
+import pandas_ta as ta
+
+from algo.strategies.strategy_interface import StrategyInterface
+from algo.strategies.enums import ProcessedSideEnum, StrategyState, ResolotionEnum
+from providers.providers_enum import ProviderEnum
+from algo.models import Deal, Market, AdminSystemConfig, StoreClient, StrategyConfig
+from providers.provider_factory import ProviderFactory
+from algo.strategies.schemas import get_strategy_schema
+import logging
+from django.db import transaction
+from decimal import Decimal
+
+from algo.models import Deal, Order, StoreClient, AdminSystemConfig, Market, StrategyConfig
+from providers.provider_factory import ProviderFactory
+from algo.enums import OrderType
+from algo_trade.schemas import OrderResponseSchema, OrderResultSchema
+from pydantic import ValidationError
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +62,7 @@ class DealProcessor:
             except Exception as e:
                 logger.error(f"Error processing deal {deal.client_deal_id}: {e}", exc_info=True)
                 # Optionally, update deal status to indicate an error or retry
-                # deal.status = StrategyState.ERROR # You might need to define an ERROR state
+                # deal.status = StrategyState.ERROR.value # You might need to define an ERROR state in StrategyState
                 # deal.save()
 
     def _place_order_for_deal(self, deal: Deal):
@@ -65,7 +90,7 @@ class DealProcessor:
 
         # 3. Retrieve AdminSystemConfig for order amount and other settings
         admin_config = AdminSystemConfig.get_instance()
-        order_amount_tether = Decimal(admin_config.wallex_tether_order_amount)  # Use Decimal for precision
+        order_amount_tether = Decimal(str(admin_config.wallex_tether_order_amount))  # Use Decimal for precision
 
         # 4. Retrieve Market information for adjustments
         try:
@@ -76,20 +101,7 @@ class DealProcessor:
             return
 
         # Calculate quantity based on desired order amount and current price
-        # Ensure price is not zero to avoid division by zero
         if deal.price and deal.price > 0:
-            # Calculate base quantity (e.g., BTC quantity for BTC/USDT)
-            # If deal.side is BUY, we are buying base_asset with quote_asset (USDT)
-            # quantity = order_amount_tether / deal.price
-            # If deal.side is SELL, we are selling base_asset to get quote_asset (USDT)
-            # For simplicity, let's assume order_amount_tether is in quote currency (USDT)
-            # and we want to trade a quantity of base asset equivalent to this USDT value.
-            # This logic might need refinement based on your exact strategy's quantity calculation.
-
-            # For now, let's assume `deal.quantity` is the desired quantity of the base asset,
-            # and `order_amount_tether` is a budget for buy orders or target for sell orders.
-            # If `deal.quantity` is null, calculate it based on `order_amount_tether`
-
             calculated_quantity = deal.quantity if deal.quantity else (order_amount_tether / deal.price)
         else:
             logger.error(
@@ -104,30 +116,27 @@ class DealProcessor:
         # Ensure adjusted quantity meets minimums
         adjusted_quantity = Decimal(str(market_instance.adjust_min_qty(float(adjusted_quantity))))
 
-        # Prepare order request data, ensuring Decimal values are converted to string for API if required by Pydantic schema
-        # Pydantic condecimal handles Decimal objects directly, so float() conversion here is okay for Pydantic but
-        # the API might expect strings. Let's send as Decimal if Pydantic allows, otherwise as string.
+        # Prepare order request data for the provider
         order_request_data = {
             "symbol": deal.market_symbol,
-            "type": OrderType.LIMIT,  # Assuming LIMIT orders for strategy
+            "type": OrderType.LIMIT.value,  # Use .value for enum
             "side": deal.side,
-            "price": adjusted_price,  # Pass Decimal directly
-            "quantity": adjusted_quantity,  # Pass Decimal directly
+            "price": adjusted_price,
+            "quantity": adjusted_quantity,
         }
 
         # 5. Call provider's create_order API
         try:
-            # The create_order method in providers should return OrderResponseSchema
-            # or a dict that can be validated by it.
+            # The create_order method in providers should now return OrderResponseSchema
             api_response: OrderResponseSchema = provider_instance.create_order(
                 api_key=store_client.api_key,
-                order_request_data=order_request_data  # Pass dict
-            ) #todo: expected: OrderResponseSchema but get dict
+                order_request_data=order_request_data
+            )
 
-            if api_response.success:
+            if api_response.success and api_response.result:
+                order_result: OrderResultSchema = api_response.result
+
                 with transaction.atomic():
-                    order_result: OrderResultSchema = api_response.result  # Access the Pydantic result object
-                    #todo: create by related provider name schemas i mean for nobitex use its pydantic schema and for wallex its related schema use clean and stractural solid to handel this scable by all provider
                     # Create an Order record in your database
                     order = Order.objects.create(
                         deal=deal,
@@ -135,13 +144,16 @@ class DealProcessor:
                         symbol=order_result.symbol,
                         type=order_result.type,
                         side=order_result.side,
-                        price=Decimal(order_result.price) if order_result.price else None,
-                        quantity=Decimal(order_result.orig_qty) if order_result.orig_qty else None,
-                        orig_qty=Decimal(order_result.orig_qty) if order_result.orig_qty else None,
-                        orig_sum=Decimal(order_result.orig_sum) if order_result.orig_sum else None,
-                        executed_price=Decimal(order_result.executed_price) if order_result.executed_price else None,
-                        executed_qty=Decimal(order_result.executed_qty) if order_result.executed_qty else None,
-                        executed_sum=Decimal(order_result.executed_sum) if order_result.executed_sum else None,
+                        price=Decimal(order_result.price) if order_result.price is not None else None,
+                        quantity=Decimal(order_result.orig_qty) if order_result.orig_qty is not None else None,
+                        orig_qty=Decimal(order_result.orig_qty) if order_result.orig_qty is not None else None,
+                        orig_sum=Decimal(order_result.orig_sum) if order_result.orig_sum is not None else None,
+                        executed_price=Decimal(
+                            order_result.executed_price) if order_result.executed_price is not None else None,
+                        executed_qty=Decimal(
+                            order_result.executed_qty) if order_result.executed_qty is not None else None,
+                        executed_sum=Decimal(
+                            order_result.executed_sum) if order_result.executed_sum is not None else None,
                         executed_percent=order_result.executed_percent,
                         status=order_result.status,
                         active=order_result.active,
@@ -154,14 +166,14 @@ class DealProcessor:
                     deal.is_processed = True
                     # You might want to update deal.status to reflect order placement, e.g., StrategyState.ORDER_PLACED
                     # Ensure StrategyState has a suitable state like 'ORDER_PLACED' or 'ORDERING'
-                    deal.save(update_fields=['is_processed'])  # Only update processed field
+                    deal.save(update_fields=['is_processed'])
             else:
                 logger.error(f"Failed to create order for deal {deal.client_deal_id}. Message: {api_response.message}")
                 # Optionally, update deal status to indicate failure
-                # deal.status = StrategyState.ORDER_FAILED
+                # deal.status = StrategyState.ORDER_FAILED.value
                 # deal.save()
 
-        except ValidationError as e:
+        except ValidationError as e:  # Pydantic ValidationError
             logger.error(f"Pydantic validation error for API response for deal {deal.client_deal_id}: {e.errors()}",
                          exc_info=True)
         except Exception as e:

@@ -13,25 +13,15 @@ class StrategyFactory:
     Factory class responsible for creating strategy instances based on the strategy name.
     """
     @staticmethod
-    def create_strategy(strategy_name: str, config: dict, provider: ProviderEnum, market: str) -> StrategyInterface:
-        """
-        Creates and returns an instance of a specified trading strategy.
+    def create_strategy(strategy_config_id: int, provider: ProviderEnum, market: str) -> StrategyInterface:
+        # Fetch the StrategyConfig instance to get the strategy_name
+        try:
+            strategy_config = StrategyConfig.objects.get(id=strategy_config_id)
+            strategy_name = strategy_config.strategy
+        except StrategyConfig.DoesNotExist:
+            raise ValueError(f"StrategyConfig with ID {strategy_config_id} not found.")
 
-        Args:
-            strategy_name (str): The name of the strategy to create (from StrategyEnum).
-            config (dict): Configuration parameters specific to the strategy.
-            provider (ProviderEnum): The enum representing the trading provider (e.g., WALLEX, NOBITEX).
-            market (str): The trading pair symbol (e.g., "BTCUSDT").
-
-        Returns:
-            StrategyInterface: An instance of the requested strategy.
-
-        Raises:
-            ValueError: If an unknown strategy_name is provided.
-        """
         if strategy_name == StrategyEnum.StrategyMacdEmaCross.name:
-            # Pass the provider (enum) and market (string) directly to the constructor
-            return StrategyMacdEmaCross(config, provider, market)
-
+            return StrategyMacdEmaCross(strategy_config_id, provider, market)
         logger.error(f"Unknown strategy: {strategy_name}")
         raise ValueError(f"Unknown strategy: {strategy_name}")
