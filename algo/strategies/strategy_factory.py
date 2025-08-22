@@ -1,5 +1,6 @@
 import logging
 
+from algo.models import StrategyConfig
 from algo.strategies.enums import StrategyEnum
 from algo.strategies.sterategy_macd_ema_cross import StrategyMacdEmaCross
 from algo.strategies.strategy_interface import StrategyInterface
