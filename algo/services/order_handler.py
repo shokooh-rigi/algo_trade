@@ -2,6 +2,7 @@ import logging
 from decimal import Decimal
 from typing import Dict, Any, Optional
 
+from django.contrib.sites import requests
 from django.db import transaction
 
 from algo.models import Order, Deal, StoreClient
