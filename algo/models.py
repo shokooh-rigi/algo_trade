@@ -9,7 +9,6 @@ from django.utils.translation import gettext_lazy as _
 from pydantic import ValidationError as PydanticValidationError
 
 from algo.enums import OrderType, OrderSide, OrderStatus, DesiredBalanceAsset, ResolutionEnum
-from algo.forms import get_strategy_schema
 from algo.strategies.enums import StrategyState, ProcessedSideEnum, StrategyEnum
 from algo_trade.base_manager import SoftDeleteManager
 from algo_trade.base_model import BaseModel, SoftDeleteModel
@@ -83,7 +82,7 @@ class Deal(BaseModel):
     )
     processed_side = models.CharField(
         max_length=35,
-        choices=ProcessedSideEnum.choices(), # CORRECTED: Call the choices() method
+        choices=ProcessedSideEnum.choices(),
         default=ProcessedSideEnum.NONE.value
     )
     # Tracking related orders
@@ -95,6 +94,7 @@ class Deal(BaseModel):
 
     def __str__(self):
         return f"Deal for {self.market_symbol} - {self.side} ({self.status})"
+
 
 class Order(BaseModel):
     store_client = models.ForeignKey(
@@ -682,21 +682,6 @@ class StrategyConfig(SoftDeleteModel, BaseModel):
         """
         super().restore()
 
-    def get_config(self):
-        """
-        Returns a validated configuration using the Pydantic schema associated with this strategy.
-
-        Returns:
-            Validated Pydantic schema instance.
-
-        Raises:
-            ValueError: If the configuration does not match the expected schema.
-        """
-        schema = get_strategy_schema(self.strategy)
-        try:
-            return schema(**self.strategy_configs)  # Validates with Pydantic schema
-        except PydanticValidationError as e:
-            raise ValueError(f"Invalid configuration for strategy {self.strategy}: {e}")
 
     @classmethod
     def update_state(cls, id: int , state: StrategyState):

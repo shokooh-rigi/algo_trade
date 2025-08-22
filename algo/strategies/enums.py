@@ -18,6 +18,15 @@ class ProcessedSideEnum(Enum):
     BUY_AND_SELL = 'BUY_AND_SELL'
     NONE = 'NONE'
 
+    @classmethod
+    def choices(cls):
+        """
+        Returns choices in (value, display_name) format for Django models.
+        Iterates over enum members to ensure proper initialization.
+        """
+        return [
+            (member.value, _(member.name)) for member in cls
+        ]
 
 class StrategyState(Enum):
     """

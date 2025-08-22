@@ -14,8 +14,7 @@ from .models import (
     Asset,
     AccountBalance,
     Market,
-    AdminSystemConfig,
-    StrategyConfig,
+    AdminSystemConfig, StrategyConfig,
 )
 from algo.forms import StrategyConfigAdminForm
 

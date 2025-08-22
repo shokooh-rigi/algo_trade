@@ -3,26 +3,7 @@ from pydantic import BaseModel
 
 from algo.models import StrategyConfig
 from algo.strategies.enums import StrategyEnum
-
-
-# --- Conceptual Utility for Strategy Configs ---
-# You'll need to implement these Pydantic schemas and this function
-# in a separate file (e.g., `algo/strategies/schemas.py`).
-class StrategyMacdEmaCrossSchema(BaseModel):
-    fast_ema_period: int
-    slow_ema_period: int
-    signal_ema_period: int
-    short_ema_period: int
-    long_ema_period: int
-    order_book_depth_threshold: float
-
-def get_strategy_schema(strategy_name: str):
-    schemas = {
-        StrategyEnum.StrategyMacdEmaCross.name: StrategyMacdEmaCrossSchema
-    }
-    return schemas.get(strategy_name, BaseModel)
-
-# --- Custom Form for StrategyConfig Model ---
+from algo.strategies.schemas import get_strategy_schema
 
 class StrategyConfigAdminForm(forms.ModelForm):
     """
