@@ -1,7 +1,7 @@
 import logging
 from pydantic import ValidationError
 
-from algo.schemas import CreateOrderRequestSchema, OrderResponseSchema
+from providers.schemas.wallex_schemas import CreateOrderRequestSchema, OrderResponseSchema
 from algo_trade import settings
 from algo_trade.utils import validate_response_schema
 from providers.provider_interface import IProvider

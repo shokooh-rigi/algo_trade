@@ -18,6 +18,7 @@ class CreateOrderRequestSchema(BaseModel):
     price: Optional[float] = Field(None, description="The price at which the order should be executed.")
     quantity: Optional[float] = Field(None, description="The quantity of the asset to be traded.")
 
+
 class OrderResultSchema(BaseModel):
     """
     Schema for the result of creating an order.
