@@ -71,31 +71,31 @@ class InquiryOrderService:
                     order.status = response_schema.result.status
                     order.active = response_schema.result.active
                     order.executed_sum = response_schema.result.executed_sum
-                    if  not order.strategy_result:
-                        logger.warning(f"{settings.INQUIRY_ORDER_LOG_PREFIX} order {order.id} has no strategy_result"
+                    if  not order.deal:
+                        logger.warning(f"{settings.INQUIRY_ORDER_LOG_PREFIX} order {order.id} has no deal"
                                        f" but inquiry to it's instance successfully done")
                         order.save(update_fields=['status','active','executed_sum'])
                         return True
 
                     if response_schema.result.status == OrderStatus.FILLED and order.side == OrderSide.BUY:
 
-                         if order.strategy_result.processed_side ==  ProcessedSideEnum.SELL.value:
-                             order.strategy_result.processed_side = ProcessedSideEnum.BUY_AND_SELL.value
-                             order.strategy_result.processed = True
-                         elif order.strategy_result.processed_side == ProcessedSideEnum.NONE.value:
-                             order.strategy_result.processed_side = ProcessedSideEnum.BUY.value
+                         if order.deal.processed_side ==  ProcessedSideEnum.SELL.value:
+                             order.deal.processed_side = ProcessedSideEnum.BUY_AND_SELL.value
+                             order.deal.is_processed = True
+                         elif order.deal.processed_side == ProcessedSideEnum.NONE.value:
+                             order.deal.processed_side = ProcessedSideEnum.BUY.value
 
                     elif response_schema.result.status == OrderStatus.FILLED and order.side == OrderSide.SELL:
 
-                        if order.strategy_result.processed_side == ProcessedSideEnum.BUY.value:
-                            order.strategy_result.processed_side = ProcessedSideEnum.BUY_AND_SELL.value
-                            order.strategy_result.processed = True
-                        elif order.strategy_result.processed_side == ProcessedSideEnum.NONE.value:
-                            order.strategy_result.processed_side = ProcessedSideEnum.SELL.value
+                        if order.deal.processed_side == ProcessedSideEnum.BUY.value:
+                            order.deal.processed_side = ProcessedSideEnum.BUY_AND_SELL.value
+                            order.deal.is_processed = True
+                        elif order.deal.processed_side == ProcessedSideEnum.NONE.value:
+                            order.deal.processed_side = ProcessedSideEnum.SELL.value
                     else:
                         pass
 
-                    order.strategy_result.save()
+                    order.deal.save()
                     order.save()
                     logger.info(f'{settings.INQUIRY_ORDER_LOG_PREFIX} Inquiry order status {order.status} successfully updated')
                     return True
