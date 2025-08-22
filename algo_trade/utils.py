@@ -1,7 +1,8 @@
 import logging
 
-from order_management.schemas import OrderResponseSchema, OrderResultSchema
 from pydantic import ValidationError
+
+from providers.schemas.wallex_schemas import OrderResponseSchema, OrderResultSchema
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,6 @@
 from django import forms
 from pydantic import BaseModel
+from pydantic import ValidationError as PydanticValidationError
 
 from algo.models import StrategyConfig
 from algo.strategies.enums import StrategyEnum

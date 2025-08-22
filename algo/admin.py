@@ -158,8 +158,8 @@ class StoreClientAdmin(admin.ModelAdmin):
         ('API Credentials', {
             'fields': ('api_key', 'api_secret')
         }),
-        ('Soft Delete', {
-            'fields': ('is_deleted', 'deleted_at'),
+        ('Soft Delete Info', {
+            'fields': ('deleted_at',),
             'classes': ('collapse',)
         }),
         ('Timestamps', {

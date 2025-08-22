@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'algo.apps.AlgoConfig',
+    '''django_celery_beat''',
 ]
 
 MIDDLEWARE = [
@@ -174,8 +175,8 @@ MARKET_DATA_LOG_PREFIX = 'MARKET =>'
 
 
 # Celery settings
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
 CELERY_TASK_RESULT_EXPIRES = int(os.getenv("CELERY_TASK_RESULT_EXPIRES", 60))
 CELERY_WORKER_LOG_FORMAT = "CELERY-LOG =>  %(asctime)s [%(levelname)s] %(name)s: %(message)s"
 CELERY_WORKER_TASK_LOG_FORMAT = "CELERY-LOG =>  %(asctime)s [%(levelname)s] %(name)s: %(message)s"
