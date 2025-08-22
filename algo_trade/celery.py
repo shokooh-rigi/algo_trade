@@ -42,27 +42,37 @@ app.conf.beat_scheduler = "django_celery_beat.schedulers:DatabaseScheduler"
 # - Use a robust broker (Redis/RabbitMQ) and monitor queue length
 
 app.conf.beat_schedule = {
-    'market_data_store': {
-        'task': 'strategy_processor.tasks.fetch_and_store_markets',
-        'schedule': crontab(day_of_week='1', hour='15', minute='30'),
-        'args': (ProviderEnum.WALLEX.value, {'config_key': 'config_value'}),
-    }, #todo run and store markets related for each provider in ProviderEnum
-    'asset_data_store': {
-        'task': 'order_management.tasks.fetch_and_store_assets',
-        'schedule': crontab(day_of_week='1', hour='13', minute='30'),
-        'args': (ProviderEnum.WALLEX.value, {'config_key': 'config_value'}),
-    }, #todo run and store assets for each provider in ProviderEnum
-    'strategy_processor': {
-        'task': 'strategy_processor.tasks.run_all_strategies',
-        'schedule': timedelta(seconds=30),
+    'market_data_store_wallex': { # Specific name for Wallex
+        'task': 'algo.tasks.fetch_and_store_markets',
+        'schedule': crontab(day_of_week='1', hour='15', minute='30'), # Example: Monday 3:30 PM
+        'args': (ProviderEnum.WALLEX.value, {}), # Pass empty config dict for now
     },
-    'deal_processing': {
-        'task': 'order_management.tasks.dispatch_deal_processing_task',
-        'schedule': timedelta(seconds=12),
+    'market_data_store_nobitex': { # Specific name for Nobitex
+        'task': 'algo.tasks.fetch_and_store_markets',
+        'schedule': crontab(day_of_week='1', hour='15', minute='45'), # Example: Monday 3:45 PM
+        'args': (ProviderEnum.NOBITEX.value, {}), # Pass empty config dict for now
     },
-    'inquiry_order_status': {
-        'task': 'order_management.tasks.inquiry_orders_task',
-        'schedule': timedelta(seconds=9),
+    'asset_data_store_wallex': { # Specific name for Wallex
+        'task': 'algo.tasks.fetch_and_store_assets',
+        'schedule': crontab(day_of_week='1', hour='13', minute='30'), # Example: Monday 1:30 PM
+        'args': (ProviderEnum.WALLEX.value, {}),
+    },
+    'asset_data_store_nobitex': { # Specific name for Nobitex
+        'task': 'algo.tasks.fetch_and_store_assets',
+        'schedule': crontab(day_of_week='1', hour='13', minute='45'), # Example: Monday 1:45 PM
+        'args': (ProviderEnum.NOBITEX.value, {}),
+    },
+    'strategy_processor_run_all': {
+        'task': 'algo.tasks.run_all_strategies',
+        'schedule': timedelta(minutes=2), # Run all active strategies every 2 minutes
+    },
+    'deal_processing_fallback': { # Renamed to clarify its fallback role
+        'task': 'algo.tasks.dispatch_deal_processing_task',
+        'schedule': timedelta(minutes=2), # Periodically check for unprocessed deals
+    },
+    'inquiry_order_status_periodic': { # Renamed for clarity
+        'task': 'algo.tasks.inquiry_orders_task',
+        'schedule': timedelta(minutes=3), # Periodically inquire about order statuses
     },
 }
 

@@ -1,38 +1,19 @@
 import logging
-from django.db import transaction
-from decimal import Decimal
-
-from algo.models import Deal, Order, StoreClient, AdminSystemConfig, Market
-from providers.provider_factory import ProviderFactory
-from algo.enums import OrderType
-from providers.schemas.wallex_schemas import OrderResponseSchema, \
-    OrderResultSchema
-from pydantic import ValidationError
-
-from datetime import datetime, timedelta
-import pandas as pd
-from typing import Dict, Any, Optional, List
-import logging
-from decimal import Decimal, getcontext
 import time
-import pandas_ta as ta
+
+from django.db import transaction
+from typing import Dict, Any, Optional, List
+from decimal import Decimal, getcontext
+from pydantic import ValidationError
 
 from algo.strategies.strategy_interface import StrategyInterface
-from algo.strategies.enums import ProcessedSideEnum, StrategyState, ResolotionEnum
+from algo.strategies.enums import ProcessedSideEnum, StrategyState
 from providers.providers_enum import ProviderEnum
-from algo.models import Deal, Market, AdminSystemConfig, StoreClient, StrategyConfig
-from providers.provider_factory import ProviderFactory
 from algo.strategies.schemas import get_strategy_schema
-import logging
-from django.db import transaction
-from decimal import Decimal
-
 from algo.models import Deal, Order, StoreClient, AdminSystemConfig, Market, StrategyConfig
-from providers.provider_factory import ProviderFactory
 from algo.enums import OrderType
-from algo_trade.schemas import OrderResponseSchema, OrderResultSchema
-from pydantic import ValidationError
-from typing import Dict, Any
+from providers.schemas.wallex_schemas  import OrderResponseSchema, OrderResultSchema
+from providers.provider_factory import ProviderFactory
 
 logger = logging.getLogger(__name__)
 
