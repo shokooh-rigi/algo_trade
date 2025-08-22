@@ -1,10 +1,12 @@
 from pydantic import BaseModel, Field, condecimal
 from typing import List, Optional, Dict, Any
+from datetime import datetime
 
 
 class NobitexCreateOrderRequest(BaseModel):
     """
     Schema for creating an order on Nobitex.
+    Endpoint: POST market/orders/add
     """
     type: str = Field(..., description="Order type: 'buy' or 'sell'")
     srcCurrency: str = Field(..., description="Source currency (e.g., 'BTC')")
@@ -15,12 +17,14 @@ class NobitexCreateOrderRequest(BaseModel):
 class NobitexOrderInfoRequest(BaseModel):
     """
     Schema for requesting order information on Nobitex.
+    Endpoint: POST v1/market/orders/status
     """
     id: int = Field(..., description="Nobitex internal order ID")
 
 class NobitexCancelOrderRequest(BaseModel):
     """
     Schema for canceling an order on Nobitex.
+    Endpoint: POST v1/market/orders/update-status
     """
     order: int = Field(..., description="Nobitex internal order ID")
     status: str = Field("canceled", const=True, description="Status to set for cancellation")
@@ -34,9 +38,16 @@ class NobitexGetBalanceRequest(BaseModel):
 
 # --- Response Schemas ---
 
+class NobitexSuccessResponse(BaseModel):
+    """
+    Generic success response from Nobitex APIs.
+    Nobitex usually returns 'status': 'ok'.
+    """
+    status: str = Field(..., pattern="ok")
+
 class NobitexOrderData(BaseModel):
     """
-    Base schema for Nobitex order details in responses.
+    Base schema for Nobitex order details in responses (active orders, order info).
     """
     id: int
     type: str # 'buy' or 'sell'
@@ -50,24 +61,14 @@ class NobitexOrderData(BaseModel):
     created_at: str
     totalPrice: Optional[str] = None # Often present in order info responses
 
-class NobitexCreateOrderResponseResult(BaseModel):
-    """
-    Schema for the result section of a Nobitex create order response.
-    """
-    order: NobitexOrderData
-
-class NobitexSuccessResponse(BaseModel):
-    """
-    Generic success response from Nobitex APIs.
-    """
-    status: str = Field(..., pattern="ok")
-    # message: Optional[str] = None # Nobitex typically uses status: ok/failed
 
 class NobitexCreateOrderResponse(NobitexSuccessResponse):
     """
     Complete schema for Nobitex create order response.
+    Endpoint: POST market/orders/add
+    Nobitex's create order response directly contains the order fields.
     """
-    result: NobitexCreateOrderResponseResult
+    order: NobitexOrderData
 
 
 class NobitexActiveOrdersResponseResult(BaseModel):
@@ -79,27 +80,26 @@ class NobitexActiveOrdersResponseResult(BaseModel):
 class NobitexActiveOrdersResponse(NobitexSuccessResponse):
     """
     Complete schema for Nobitex active orders response.
+    Endpoint: GET v1/account/openOrders
     """
     result: NobitexActiveOrdersResponseResult
 
 
-class NobitexOrderInfoResponseResult(BaseModel):
-    """
-    Schema for the result of order info response.
-    """
-    order: NobitexOrderData
-
 class NobitexOrderInfoResponse(NobitexSuccessResponse):
     """
     Complete schema for Nobitex order information response.
+    Endpoint: POST v1/market/orders/status
+    Nobitex's order info response directly contains the order fields.
     """
-    result: NobitexOrderInfoResponseResult
+    order: NobitexOrderData
 
 
-class NobitexCancelOrderResponse(NobitexSuccessResponse):
+class NobitexCancelOrderResponse(BaseModel): # Nobitex status might be outside 'status: ok'
     """
     Schema for Nobitex cancel order response.
+    Endpoint: POST v1/market/orders/update-status
     """
+    status: str = Field(..., pattern="ok")
     updatedStatus: str = Field(..., pattern="Canceled") # Expected status after successful cancellation
 
 class NobitexBalanceDetail(BaseModel):
@@ -114,6 +114,7 @@ class NobitexGetBalancesResponse(NobitexSuccessResponse):
     """
     Schema for Nobitex get balances response.
     The 'balance' field is a dictionary where keys are currency symbols.
+    Endpoint: POST v2/users/wallets/balance
     """
     balance: Dict[str, NobitexBalanceDetail]
 

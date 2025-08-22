@@ -147,18 +147,21 @@ WALLEX_ACTIVE_ORDERS_PATH : str = os.getenv('WALLEX_ACTIVE_ORDERS_PATH', 'v1/acc
 WALLEX_ORDER_INFO_PATH : str = os.getenv('WALLEX_ORDER_INFO_PATH', 'v1/account/orders/')
 WALLEX_CANCEL_ORDER_PATH : str = os.getenv('WALLEX_CANCEL_ORDER_PATH', 'v1/account/orders')
 WALLEX_GET_BALANCES_PATH : str = os.getenv('WALLEX_GET_BALANCES_PATH', 'v1/account/balances/')
+WALLEX_OHLCV_HISTORY_PATH : str = os.getenv('WALLEX_OHLCV_HISTORY_PATH',"/v1/market/ohlcv")
 
 #url nobitex
 NOBITEX_BASE_URL : str = os.getenv('NOBITEX_BASE_URL', 'https://api.nobitex.ir/')
 NOBITEX_ORDER_BOOK_PATH : str = os.getenv('NOBITEX_ORDER_BOOK_PATH', 'v2/depth/all')
-NOBITEX_ORDER_BOOK_PATH_BY_SYMBOL : str = os.getenv('NOBITEX_ORDER_BOOK_PATH_BY_SYMBOL', 'v1/depth?symbol=')
+NOBITEX_ORDER_BOOK_PATH_BY_SYMBOL : str = os.getenv('NOBITEX_ORDER_BOOK_PATH_BY_SYMBOL', 'v1/depth')
 NOBITEX_MARKET_PATH : str = os.getenv('NOBITEX_MARKET_PATH', 'v1/markets')
 NOBITEX_ASSET_PATH : str = os.getenv('NOBITEX_ASSET_PATH', 'v1/currencies')
-NOBITEX_ORDER_CREATE_PATH : str = os.getenv('NOBITEX_ORDER_CREATE_PATH', 'v1/account/orders')
-NOBITEX_ACTIVE_ORDERS_PATH : str = os.getenv('NOBITEX_ACTIVE_ORDERS_PATH', 'v1/account/openOrders')
-NOBITEX_ORDER_INFO_PATH : str = os.getenv('NOBITEX_ORDER_INFO_PATH', 'v1/account/orders/')
-NOBITEX_CANCEL_ORDER_PATH : str = os.getenv('NOBITEX_CANCEL_ORDER_PATH', 'v1/account/orders')
-NOBITEX_GET_BALANCES_PATH : str = os.getenv('NOBITEX_GET_BALANCES_PATH', 'v1/account/balances/')
+
+NOBITEX_ORDER_CREATE_PATH : str = os.getenv('NOBITEX_ORDER_CREATE_PATH', 'market/orders/add') # This is a POST endpoint, often a v2 path.
+NOBITEX_ACTIVE_ORDERS_PATH : str = os.getenv('NOBITEX_ACTIVE_ORDERS_PATH', 'v1/account/openOrders') # This is a GET endpoint.
+NOBITEX_ORDER_INFO_PATH : str = os.getenv('NOBITEX_ORDER_INFO_PATH', 'v1/market/orders/status') # This is a POST endpoint.
+NOBITEX_CANCEL_ORDER_PATH : str = os.getenv('NOBITEX_CANCEL_ORDER_PATH', 'v1/market/orders/update-status') # This is a POST endpoint.
+NOBITEX_GET_BALANCES_PATH : str = os.getenv('NOBITEX_GET_BALANCES_PATH', 'v2/users/wallets/balance') # This is a POST endpoint.
+NOBITEX_OHLCV_HISTORY_PATH : str = os.getenv('NOBITEX_OHLCV_HISTORY_PATH', "market/udf/history")
 
 #log prefix
 LOG_PREFIX = 'PROCESSOR => '
