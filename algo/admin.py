@@ -1,8 +1,11 @@
-# algo/admin.py
 import logging
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
+from django import forms
+from django.core.exceptions import ValidationError
+from pydantic import ValidationError as PydanticValidationError, BaseModel
+from typing import Dict, Any
 
 from .models import (
     Deal,
@@ -12,17 +15,17 @@ from .models import (
     AccountBalance,
     Market,
     AdminSystemConfig,
+    StrategyConfig,
 )
-from algo.strategies.enums import StrategyState # Assuming StrategyState is in algo.strategies.enums
+from algo.forms import StrategyConfigAdminForm
 
 logger = logging.getLogger(__name__)
 
-# --- Inlines for related models ---
 
 class OrderInline(admin.TabularInline):
     """Inline display for Orders within a Deal."""
     model = Order
-    extra = 0 # Don't show extra empty forms
+    extra = 0
     fields = (
         'client_order_id', 'symbol', 'side', 'type', 'price', 'quantity',
         'executed_qty', 'status', 'active', 'should_cancel'
@@ -33,7 +36,7 @@ class OrderInline(admin.TabularInline):
         'executed_sum', 'executed_percent', 'status', 'active',
         'timestamp_created_at', 'created_at', 'updated_at'
     )
-    show_change_link = True # Allow clicking to edit the individual order
+    show_change_link = True
 
 
 class AccountBalanceInline(admin.TabularInline):
@@ -42,7 +45,7 @@ class AccountBalanceInline(admin.TabularInline):
     extra = 0
     fields = ('asset', 'total_balance', 'unbalance_threshold')
     readonly_fields = ('created_at', 'updated_at')
-    raw_id_fields = ('asset',) # Use raw_id_fields for asset selection
+    raw_id_fields = ('asset',)
 
 
 @admin.register(Deal)
@@ -50,10 +53,10 @@ class DealAdmin(admin.ModelAdmin):
     """Admin configuration for the Deal model."""
     list_display = (
         'client_deal_id', 'strategy_name', 'provider_name', 'market_symbol',
-        'side', 'status', 'is_processed', 'is_active', 'created_at_display'
+        'side', 'status', 'is_processed', 'is_active', 'processed_side', 'created_at_display'
     )
     list_filter = (
-        'strategy_name', 'provider_name', 'side', 'status', 'is_processed', 'is_active'
+        'strategy_name', 'provider_name', 'side', 'status', 'is_processed', 'is_active', 'processed_side'
     )
     search_fields = (
         'client_deal_id', 'market_symbol', 'strategy_name'
@@ -69,14 +72,14 @@ class DealAdmin(admin.ModelAdmin):
             'fields': ('side', 'price', 'quantity')
         }),
         ('Status & Control', {
-            'fields': ('status', 'is_processed', 'is_active')
+            'fields': ('status', 'is_processed', 'is_active', 'processed_side')
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',) # Collapse this section by default
+            'classes': ('collapse',)
         }),
     )
-    inlines = [OrderInline] # Show related orders directly under a deal
+    inlines = [OrderInline]
 
     def created_at_display(self, obj):
         return obj.created_at.strftime("%Y-%m-%d %H:%M:%S")
@@ -98,7 +101,7 @@ class OrderAdmin(admin.ModelAdmin):
     search_fields = (
         'client_order_id', 'symbol', 'deal__client_deal_id', 'store_client__name'
     )
-    raw_id_fields = ('store_client', 'deal',) # Use raw_id_fields for better performance with many objects
+    raw_id_fields = ('store_client', 'deal',)
     readonly_fields = (
         'orig_qty', 'orig_sum', 'executed_sum', 'executed_percent',
         'timestamp_created_at', 'created_at', 'updated_at'
@@ -165,7 +168,7 @@ class StoreClientAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-    inlines = [AccountBalanceInline] # Show related account balances
+    inlines = [AccountBalanceInline]
 
     def created_at_display(self, obj):
         return obj.created_at.strftime("%Y-%m-%d %H:%M:%S")
@@ -308,4 +311,34 @@ class AdminSystemConfigAdmin(admin.ModelAdmin):
         return not AdminSystemConfig.objects.exists()
 
     def has_delete_permission(self, request, obj=None):
-        return False # Prevent deletion of the single config instance
+        return False # Prevent deletion of the single config instance.
+
+@admin.register(StrategyConfig)
+class StrategyConfigAdmin(admin.ModelAdmin):
+    form = StrategyConfigAdminForm
+    list_display = (
+        'id', 'strategy', 'market', 'store_client', 'is_active', 'state', 'created_at'
+    )
+    list_filter = (
+        'strategy', 'market__symbol', 'store_client', 'is_active', 'state'
+    )
+    search_fields = (
+        'id', 'market__symbol', 'store_client__name'
+    )
+    readonly_fields = (
+        'created_at', 'updated_at'
+    )
+    raw_id_fields = ('market', 'store_client')
+
+    fieldsets = (
+        (None, {
+            'fields': ('strategy', 'market', 'store_client', 'state', 'is_active')
+        }),
+        ('Strategy Parameters', {
+            'fields': ('strategy_configs', 'sensitivity_percent', 'need_historical_data', 'initial_history_period_days', 'resolution'),
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',),
+        }),
+    )

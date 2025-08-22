@@ -4,12 +4,16 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models, transaction
 from decimal import Decimal
+from django.db.models import CASCADE
+from django.utils.translation import gettext_lazy as _
+from pydantic import ValidationError as PydanticValidationError
 
-from algo.enums import OrderType, OrderSide, OrderStatus, DesiredBalanceAsset
-from algo.strategies.enums import StrategyState
+from algo.enums import OrderType, OrderSide, OrderStatus, DesiredBalanceAsset, ResolutionEnum
+from algo.forms import get_strategy_schema
+from algo.strategies.enums import StrategyState, ProcessedSideEnum, StrategyEnum
+from algo_trade.base_manager import SoftDeleteManager
 from algo_trade.base_model import BaseModel, SoftDeleteModel
 from providers.providers_enum import ProviderEnum
-from algo_trade.base_model import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +48,7 @@ class Deal(BaseModel):
     # Deal details
     side = models.CharField(
         max_length=5,
-        choices=OrderSide.CHOICES,
+        choices=OrderSide.CHOICES, # Assuming OrderSide is still a class with CHOICES attribute
         help_text="The side of the deal (BUY or SELL)."
     )
     price = models.DecimalField(
@@ -69,15 +73,19 @@ class Deal(BaseModel):
     )
     status = models.CharField(
         max_length=20,
-        choices=StrategyState.CHOICES,
-        default=StrategyState.STARTED,
+        choices=StrategyState.choices(), # CORRECTED: Call the choices() method
+        default=StrategyState.STARTED.value,
         help_text="The current state of the deal lifecycle."
     )
     is_processed = models.BooleanField(
         default=False,
         help_text="Indicates if a related order has been placed for this deal."
     )
-
+    processed_side = models.CharField(
+        max_length=35,
+        choices=ProcessedSideEnum.choices(), # CORRECTED: Call the choices() method
+        default=ProcessedSideEnum.NONE.value
+    )
     # Tracking related orders
     # This can be a one-to-one or one-to-many relationship depending on your strategy
     # For a simple buy/sell strategy, one-to-many is better.
@@ -586,3 +594,119 @@ class AdminSystemConfig(BaseModel):
         Retrieves the value of a specific configuration key.
         """
         return getattr(self, key, None)
+
+
+class StrategyConfig(SoftDeleteModel, BaseModel):
+    """
+    Model to store configurations for various strategies.
+
+    Attributes:
+        strategy (str): The name of the strategy (e.g., StrategyMacdEmaCross").
+        strategy_configs (dict): JSON field containing strategy-specific settings.
+        market (ForeignKey): Foreign key referencing the `Market` model.
+    """
+    strategy = models.CharField(
+        max_length=255,
+        choices=StrategyEnum.choices(), # Use .choices()
+        default=StrategyEnum.StrategyMacdEmaCross.name
+    )
+    store_client = models.ForeignKey(
+        'StoreClient',
+        default=None,
+        on_delete=CASCADE,
+        help_text="The store client associated with this strategy.",
+    )
+    need_historical_data = models.BooleanField(
+        default=True,
+    )
+    strategy_configs = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+    market = models.ForeignKey(
+        Market,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="strategy_configs",
+        help_text="The market associated with this strategy.",
+    )
+    sensitivity_percent = models.FloatField(
+        default=0.01,
+        validators=[
+            MinValueValidator(0.000001, message="Value must be greater than 0."),
+            MaxValueValidator(1.0, message="Value must not exceed 1."),
+        ],
+        help_text="A percentage of sensitivity for an order, must be between 0 (exclusive) and 1 (inclusive).",
+    )
+    initial_history_period_days = models.IntegerField(
+        default=30,
+
+    )
+    resolution = models.CharField(
+        choices=ResolutionEnum.choices(),
+        help_text="The time resolution for historical data (e.g., 1 minute, 1 day).",
+        default=ResolutionEnum.D.value,
+        max_length=5,
+    )
+    state = models.PositiveSmallIntegerField(
+        choices=StrategyState.choices(),
+        default=StrategyState.STARTED.value,
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Indicates whether the strategy configuration is active."
+    )
+
+    def __str__(self):
+        # Ensure market is not None before accessing its symbol
+        market_info = self.market.symbol if self.market else "N/A"
+        return f"{self.id} Configuration for {market_info} in strategy {self.strategy}"
+
+    objects = SoftDeleteManager()  # Default manager (excludes soft-deleted items)
+    all_objects = models.Manager()  # Includes all objects, even soft-deleted ones
+
+    class Meta:
+        verbose_name = "Strategy Configuration"
+        verbose_name_plural = "Strategy Configurations"
+
+    def soft_delete(self):
+        """
+        Soft delete: Marks the object as deleted.
+        """
+        super().soft_delete()
+
+    def restore(self):
+        """
+        Restore a soft-deleted object.
+        """
+        super().restore()
+
+    def get_config(self):
+        """
+        Returns a validated configuration using the Pydantic schema associated with this strategy.
+
+        Returns:
+            Validated Pydantic schema instance.
+
+        Raises:
+            ValueError: If the configuration does not match the expected schema.
+        """
+        schema = get_strategy_schema(self.strategy)
+        try:
+            return schema(**self.strategy_configs)  # Validates with Pydantic schema
+        except PydanticValidationError as e:
+            raise ValueError(f"Invalid configuration for strategy {self.strategy}: {e}")
+
+    @classmethod
+    def update_state(cls, id: int , state: StrategyState):
+        """
+        Updates the state of the strategy with the given `id` and `state`.
+        :param id: The ID of the StrategyConfig instance.
+        :param state: The new StrategyState to set.
+        :return: Number of updated rows.
+        """
+        # Ensure state is passed as its value
+        return cls.objects.filter(
+            id=id,
+        ).update(state=state.value)

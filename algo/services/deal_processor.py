@@ -4,11 +4,10 @@ from decimal import Decimal
 
 from algo.models import Deal, Order, StoreClient, AdminSystemConfig, Market
 from providers.provider_factory import ProviderFactory
-from algo.enums import OrderType, OrderStatus
+from algo.enums import OrderType
 from providers.schemas.wallex_schemas import OrderResponseSchema, \
     OrderResultSchema  # Assuming this schema is consistent for all providers
 from pydantic import ValidationError  # Import ValidationError for handling pydantic errors
-from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -123,12 +122,12 @@ class DealProcessor:
             api_response: OrderResponseSchema = provider_instance.create_order(
                 api_key=store_client.api_key,
                 order_request_data=order_request_data  # Pass dict
-            )
+            ) #todo: expected: OrderResponseSchema but get dict
 
             if api_response.success:
                 with transaction.atomic():
                     order_result: OrderResultSchema = api_response.result  # Access the Pydantic result object
-
+                    #todo: create by related provider name schemas i mean for nobitex use its pydantic schema and for wallex its related schema use clean and stractural solid to handel this scable by all provider
                     # Create an Order record in your database
                     order = Order.objects.create(
                         deal=deal,

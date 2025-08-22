@@ -80,3 +80,33 @@ class DesiredBalanceAsset:
         (USDT, _('USDT')),
         (TMN, _('TMN')),
     ]
+
+class ResolutionEnum(Enum):
+    """
+    Enum for specifying the time resolution of historical data (candlesticks).
+    Common values used by exchanges.
+    """
+    M1 = '1'    # 1 Minute
+    M5 = '5'    # 5 Minutes
+    M15 = '15'  # 15 Minutes
+    M30 = '30'  # 30 Minutes
+    H1 = '60'   # 1 Hour
+    H4 = '240'  # 4 Hours
+    D = 'D'     # 1 Day
+    W = 'W'     # 1 Week
+    MO = 'MO'   # 1 Month
+
+    @classmethod
+    def choices(cls):
+        """Returns choices in (value, display_name) format for Django models."""
+        return [
+            (cls.M1.value, _('1 Minute')),
+            (cls.M5.value, _('5 Minutes')),
+            (cls.M15.value, _('15 Minutes')),
+            (cls.M30.value, _('30 Minutes')),
+            (cls.H1.value, _('1 Hour')),
+            (cls.H4.value, _('4 Hours')),
+            (cls.D.value, _('1 Day')),
+            (cls.W.value, _('1 Week')),
+            (cls.MO.value, _('1 Month')),
+        ]
