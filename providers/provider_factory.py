@@ -1,5 +1,6 @@
 import logging
 
+from providers.nobitex_provider import NobitexProvider
 from providers.provider_interface import IProvider
 from providers.providers_enum import ProviderEnum
 from providers.wallex_provider import WallexProvider
@@ -29,6 +30,10 @@ class ProviderFactory:
         """
         if provider_name == ProviderEnum.WALLEX.value:
             return WallexProvider(provider_config)
+        elif provider_name == ProviderEnum.NOBITEX.value:
+            return NobitexProvider(provider_config)  # <-- Ensure this logic exists
+        else:
+            raise ValueError(f"Unknown provider: {provider_name}")
 
         logger.error(f"Unknown provider: {provider_name}")
         raise ValueError(f"Unknown provider: {provider_name}")

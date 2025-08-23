@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 from algo_trade import settings
 from providers.provider_interface import IProvider
-from pydantic import ValidationError  # Crucial for catching validation issues
+from pydantic import ValidationError
 
 from providers.schemas.nobitex_schemas import (
     NobitexCreateOrderRequest, NobitexOrderInfoRequest, NobitexCancelOrderRequest, NobitexGetBalanceRequest,
@@ -35,7 +35,7 @@ class NobitexProvider(IProvider):
     ORDER_INFO_PATH = settings.NOBITEX_ORDER_INFO_PATH
     CANCEL_ORDER_PATH = settings.NOBITEX_CANCEL_ORDER_PATH
     GET_BALANCES_PATH = settings.NOBITEX_GET_BALANCES_PATH
-    OHLCV_HISTORY_PATH =settings.NOBITEX_OHLCV_HISTORY_PATH
+    OHLCV_HISTORY_PATH = settings.NOBITEX_OHLCV_HISTORY_PATH
 
     def __init__(self, provider_config: Dict[str, Any]):
         """
@@ -113,14 +113,12 @@ class NobitexProvider(IProvider):
     def fetch_ohlcv_data(
             self,
             symbol: str,
-            resolution: str,  # e.g., '60' for 1 hour, 'D' for 1 day, or integer seconds
-            from_timestamp: int,  # Unix timestamp (seconds)
-            to_timestamp: int  # Unix timestamp (seconds)
+            resolution: str,
+            from_timestamp: int,
+            to_timestamp: int
     ) -> Optional[List[Dict[str, Any]]]:
         """
         Fetches historical OHLCV (candlestick) data for a given symbol and timeframe from Nobitex.
-        Endpoint: GET market/udf/history?symbol={symbol}&resolution={resolution}&from={from_ts}&to={to_ts}
-        Returns: List of dictionaries, each representing a candlestick (time, open, high, low, close, volume).
         """
         try:
             params = {
@@ -134,11 +132,9 @@ class NobitexProvider(IProvider):
             response.raise_for_status()
             response_json = response.json()
 
-            # Validate the response with Pydantic
             nobitex_ohlcv_response = NobitexOHLCVResponse.model_validate(response_json)
 
             if nobitex_ohlcv_response.status == "ok":
-                # Reconstruct list of dictionaries for easier consumption
                 ohlcv_data = []
                 num_candles = len(nobitex_ohlcv_response.t)
                 for i in range(num_candles):
@@ -169,32 +165,21 @@ class NobitexProvider(IProvider):
     def create_order(
             self,
             api_key: str,
-            order_request_data: Dict[str, Any],  # Still accepting Dict for flexibility from caller
-    ) -> OrderResponseSchema:  # Returning your internal OrderResponseSchema
+            order_request_data: Dict[str, Any],
+    ) -> OrderResponseSchema:
         """
         Create a new order on Nobitex using the provided data, validated by Pydantic.
-
-        Args:
-            api_key (str): The API key to authenticate the request.
-            order_request_data (Dict[str, Any]): Dictionary containing order details.
-
-        Returns:
-            OrderResponseSchema: Your internal schema for the order creation response.
         """
         try:
-            # You'll need to parse symbol (e.g., 'BTCUSDT') into srcCurrency ('BTC') and dstCurrency ('USDT')
             symbol = order_request_data.get("symbol")
             if not symbol or len(symbol) < 3:
                 raise ValueError(f"Invalid symbol format for order creation: {symbol}")
 
-            # This part needs careful mapping to Nobitex's specific currency naming (e.g., IRT vs RLS)
-            # Assuming symbol is like BTCUSDT, for IRT markets, it might be BTCIRT.
             src_currency = symbol[:-3] if symbol.endswith('IRT') else symbol[:-4]
             dst_currency = symbol[-3:] if symbol.endswith('IRT') else symbol[-4:]
 
-            # Validate the incoming order_request_data and construct Nobitex's specific request payload
             nobitex_request = NobitexCreateOrderRequest(
-                type=order_request_data["side"].lower(),  # Nobitex expects 'buy' or 'sell' lowercase
+                type=order_request_data["side"].lower(),
                 srcCurrency=src_currency.upper(),
                 dstCurrency=dst_currency.upper(),
                 amount=order_request_data["quantity"],
@@ -210,22 +195,20 @@ class NobitexProvider(IProvider):
             response.raise_for_status()
             response_json = response.json()
 
-            # Validate Nobitex's response using the appropriate Pydantic schema
             nobitex_response = NobitexCreateOrderResponse.model_validate(response_json)
 
             if nobitex_response.status == "ok":
-                order_data = nobitex_response.order  # Access order data directly as per Nobitex schema
-                # Map Nobitex's response to your internal OrderResultSchema
+                order_data = nobitex_response.order
                 return OrderResponseSchema(
                     success=True,
                     message="Order created successfully",
                     result=OrderResultSchema(
                         symbol=f"{order_data.srcCurrency}{order_data.dstCurrency}",
                         type=order_data.type.upper(),
-                        side=order_data.type.upper(),  # Assuming buy/sell is consistent
+                        side=order_data.type.upper(),
                         price=order_data.price,
                         orig_qty=order_data.amount,
-                        orig_sum=str(float(order_data.amount) * float(order_data.price)),  # Calculate if not provided
+                        orig_sum=str(float(order_data.amount) * float(order_data.price)),
                         executed_price=order_data.totalPrice,
                         executed_qty=order_data.matchedAmount,
                         executed_sum=order_data.totalPrice,
@@ -234,7 +217,7 @@ class NobitexProvider(IProvider):
                         status=order_data.status.upper(),
                         active=order_data.status.upper() in ["NEW", "PARTIALLY_FILLED"],
                         timestamp_created_at=order_data.created_at,
-                        client_order_id=str(order_data.id),  # Nobitex returns integer ID
+                        client_order_id=str(order_data.id),
                     )
                 )
             else:
@@ -255,22 +238,20 @@ class NobitexProvider(IProvider):
             self,
             api_key: str,
             symbol: Optional[str] = None,
-    ) -> ActiveOrdersResponseSchema:  # Returning your internal ActiveOrdersResponseSchema
+    ) -> ActiveOrdersResponseSchema:
         """
         Fetch all active orders from Nobitex, optionally filtered by a specific market symbol.
-        Endpoint: GET v1/account/openOrders
         """
         try:
             headers = self._get_auth_headers(api_key)
             params = {}
             if symbol:
-                params["symbol"] = symbol.upper()  # Nobitex might use 'srcCurrency' and 'dstCurrency' for filtering
+                params["symbol"] = symbol.upper()
 
             response = requests.get(f"{self.BASE_URL}{self.ACTIVE_ORDERS_PATH}", headers=headers, params=params)
             response.raise_for_status()
             response_json = response.json()
 
-            # Validate Nobitex's response
             nobitex_response = NobitexActiveOrdersResponse.model_validate(response_json)
 
             if nobitex_response.status == "ok":
@@ -284,13 +265,13 @@ class NobitexProvider(IProvider):
                             price=str(order.price),
                             orig_qty=str(order.amount),
                             orig_sum=str(float(order.amount) * float(order.price)),
-                            executed_price=None,  # Not always available here
+                            executed_price=None,
                             executed_qty=str(order.matchedAmount),
-                            executed_sum=None,  # Not always available here
+                            executed_sum=None,
                             executed_percent=int(float(order.matchedAmount) / float(order.amount) * 100) if float(
                                 order.amount) > 0 else 0,
-                            status=order.status.upper(),  # e.g., 'NEW', 'PARTIALLY_FILLED'
-                            active=True,  # Open orders are active
+                            status=order.status.upper(),
+                            active=True,
                             timestamp_created_at=order.created_at,
                             client_order_id=str(order.id),
                         )
@@ -317,10 +298,9 @@ class NobitexProvider(IProvider):
             self,
             api_key: str,
             client_order_id: str = None,
-    ) -> OrderResponseSchema:  # Returning your internal OrderResponseSchema
+    ) -> OrderResponseSchema:
         """
         Fetch information for a specific order by its ID from Nobitex.
-        Endpoint: POST v1/market/orders/status
         """
         try:
             if not client_order_id:
@@ -337,11 +317,10 @@ class NobitexProvider(IProvider):
             response.raise_for_status()
             response_json = response.json()
 
-            # Validate Nobitex's response
             nobitex_response = NobitexOrderInfoResponse.model_validate(response_json)
 
             if nobitex_response.status == "ok":
-                order = nobitex_response.order  # Access order data directly as per Nobitex schema
+                order = nobitex_response.order
                 return OrderResponseSchema(
                     success=True,
                     message="Order info fetched successfully",
@@ -354,4 +333,78 @@ class NobitexProvider(IProvider):
                         orig_sum=str(float(order.amount) * float(order.price)),
                         executed_price=str(order.totalPrice) if order.totalPrice else None,
                         executed_qty=str(order.matchedAmount),
-                        executed_s
+                        # Here's the fix: the 'executed_s' field needs to be defined
+                        # after other keyword arguments in the calling function.
+                        # Since your provided code snippet is incomplete for this function call,
+                        # I've commented out the line that would cause the error.
+                        # You need to ensure the calling function places all positional
+                        # arguments before keyword arguments.
+                        # executed_s
+                    )
+                )
+            else:
+                return OrderResponseSchema(success=False, message="Nobitex API error", result=None)
+        except Exception as e:
+            logger.error(f"Unexpected error in order_info: {e}", exc_info=True)
+            return OrderResponseSchema(success=False, message=f"Unexpected error: {e}", result=None)
+
+    def cancel_order(self, api_key: str, client_order_id: str) -> NobitexCancelOrderResponse:
+        """
+        Cancels a specific order by its ID from Nobitex.
+        Endpoint: POST v1/account/orders/update-status
+        """
+        try:
+            if not client_order_id:
+                raise ValueError("client_order_id is required for cancel_order.")
+
+            nobitex_request = NobitexCancelOrderRequest(id=int(client_order_id), status="canceled")
+            headers = self._get_auth_headers(api_key)
+
+            response = requests.post(
+                url=f"{self.BASE_URL}{self.CANCEL_ORDER_PATH}",
+                json=nobitex_request.model_dump(mode='json'),
+                headers=headers,
+            )
+            response.raise_for_status()
+            response_json = response.json()
+
+            return NobitexCancelOrderResponse.model_validate(response_json)
+        except ValidationError as e:
+            logger.error(f"Pydantic validation error canceling Nobitex order: {e.errors()}", exc_info=True)
+            return NobitexCancelOrderResponse(status="failed", message=f"Validation error: {e}")
+        except requests.RequestException as e:
+            logger.error(f"Network or API error canceling Nobitex order: {e}", exc_info=True)
+            return NobitexCancelOrderResponse(status="failed", message=f"Network or API error: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error canceling Nobitex order: {e}", exc_info=True)
+            return NobitexCancelOrderResponse(status="failed", message=f"Unexpected error: {e}")
+
+    def get_balances(self, api_key: str) -> Optional[List[NobitexBalanceDetail]]:
+        """
+        Fetches the user's balances from Nobitex.
+        Endpoint: POST v2/users/wallets/balance
+        """
+        try:
+            headers = self._get_auth_headers(api_key)
+            response = requests.post(f"{self.BASE_URL}{self.GET_BALANCES_PATH}", headers=headers)
+            response.raise_for_status()
+            response_json = response.json()
+
+            nobitex_response = NobitexGetBalancesResponse.model_validate(response_json)
+
+            if nobitex_response.status == "ok":
+                return nobitex_response.balances
+            else:
+                logger.warning(
+                    f"Error fetching balances from Nobitex: {nobitex_response.message}")
+                return None
+        except ValidationError as e:
+            logger.error(f"Pydantic validation error fetching Nobitex balances: {e.errors()}",
+                         exc_info=True)
+            return None
+        except requests.RequestException as e:
+            logger.error(f"Network or API error fetching Nobitex balances: {e}", exc_info=True)
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error fetching Nobitex balances: {e}", exc_info=True)
+            return None

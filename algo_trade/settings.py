@@ -84,20 +84,21 @@ WSGI_APPLICATION = 'algo_trade.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DATABASE_NAME', 'algo_db'),
-        'USER': os.getenv('DATABASE_USER', 'postgres'),
-        'PASSWORD': os.getenv('DATABASE_PASSWORD', 'your_password'),
-        'HOST': os.getenv('DATABASE_HOST', 'localhost'),
-        'PORT': os.getenv('DATABASE_PORT', 5432),
+        'NAME': os.getenv('DB_DATABASE', 'algo_db'),
+        'USER': os.getenv('DB_USERNAME', 'postgres'),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'your_password'),
+        # Change this line:
+        'HOST': os.getenv('DB_HOST', 'postgres'),  # Use the service name 'postgres'
+        'PORT': os.getenv('DB_PORT', 5432),
     }
 }
-
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
+STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 AUTH_PASSWORD_VALIDATORS = [
     {
