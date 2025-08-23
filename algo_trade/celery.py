@@ -44,12 +44,12 @@ app.conf.beat_scheduler = "django_celery_beat.schedulers:DatabaseScheduler"
 app.conf.beat_schedule = {
     'market_data_store_wallex': { # Specific name for Wallex
         'task': 'algo.tasks.fetch_and_store_markets',
-        'schedule': crontab(day_of_week='1', hour='15', minute='30'), # Example: Monday 3:30 PM
+        'schedule': timedelta(minutes=2),  # Run all active strategies every 2 minutes
         'args': (ProviderEnum.WALLEX.value, {}), # Pass empty config dict for now
     },
     'market_data_store_nobitex': { # Specific name for Nobitex
         'task': 'algo.tasks.fetch_and_store_markets',
-        'schedule': crontab(day_of_week='1', hour='15', minute='45'), # Example: Monday 3:45 PM
+        'schedule': timedelta(minutes=2),  # Run all active strategies every 2 minutes
         'args': (ProviderEnum.NOBITEX.value, {}), # Pass empty config dict for now
     },
     'asset_data_store_wallex': { # Specific name for Wallex

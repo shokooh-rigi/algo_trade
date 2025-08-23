@@ -184,7 +184,7 @@ CELERY_BEAT_LOG_FORMAT = "CELERY-LOG =>  %(asctime)s [%(levelname)s] %(name)s: %
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_WORKER_SEND_TASK_EVENTS = True
 CELERY_TASK_SEND_SENT_EVENT = True
-
+CELERY_TASK_TIME_LIMIT = 300
 #redis config
 REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
 REDIS_PORT : int = int(os.getenv('REDIS_PORT', '6379'))

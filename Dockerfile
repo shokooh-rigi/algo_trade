@@ -1,28 +1,21 @@
-# Use a Python base image
-FROM python:3.9-slim-buster
+FROM python:3.9-slim
 
-# Set environment variables
-ENV PYTHONUNBUFFERED 1
-ENV APP_HOME /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
 
-# Create and set working directory
-WORKDIR $APP_HOME
+WORKDIR /app
 
-# Install system dependencies (if any, e.g., for psycopg2-binary)
-# RUN apt-get update && apt-get install -y \
-#     postgresql-client \
-#     # libpq-dev # Might be needed for psycopg2-binary build
-#     # gcc # Might be needed for some python packages
-#     # && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements file and install Python dependencies
-COPY requirements.txt $APP_HOME/
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy your entire project
-COPY . $APP_HOME/
+# Copy the rest of your application code
+COPY . .
 
-# Expose ports if needed (e.g., for Django server if it were in Docker)
-# EXPOSE 8000
+# Expose any necessary ports (if applicable)
+EXPOSE 8000 5555
 
-# No CMD here, as docker-compose.yml will override it with specific commands
+# Define the default command for the container
+# This can be overridden in docker-compose.yml
+CMD ["tail", "-f", "/dev/null"]

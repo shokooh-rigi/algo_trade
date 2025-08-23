@@ -7,6 +7,8 @@ services:
       - "6379:6379" # Map container port 6379 to host port 6379
     volumes:
       - redis_data:/data # Persist Redis data
+    restart:
+      always
     networks:
       - my_celery_network # Custom network for Celery components
 
@@ -16,9 +18,15 @@ services:
     volumes:
       - .:/app # Mount your Django project into the container
     environment:
+      - REDIS_HOST=redis
       - DJANGO_SETTINGS_MODULE=algo_trade.settings
       - CELERY_BROKER_URL=redis://redis:6379/0 # Connect to the Redis service by its name
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DATABASE_NAME=algo_db # Matches os.getenv('DATABASE_NAME', 'algo_db')
+      - DATABASE_USER=postgres # Matches os.getenv('DATABASE_USER', 'postgres')
+      - DATABASE_PASSWORD=shokooh # Matches os.getenv('DATABASE_PASSWORD', 'your_password')
+      - DATABASE_HOST=host.docker.internal # For Docker Desktop to reach localhost PostgreSQL
+      - DATABASE_PORT=5432 # Matches os.getenv('DATABASE_PORT', 5432)
     depends_on:
       - redis # Ensure Redis starts before the worker
     networks:
@@ -32,9 +40,10 @@ services:
     environment:
       - DJANGO_SETTINGS_MODULE=algo_trade.settings
       - CELERY_BROKER_URL=redis://redis:6379/0
+      - REDIS_HOST=redis
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
        - DATABASE_NAME=algo_db # Matches os.getenv('DATABASE_NAME', 'algo_db')
-      - DATABASE_USER=root # Matches os.getenv('DATABASE_USER', 'postgres')
+      - DATABASE_USER=postgres # Matches os.getenv('DATABASE_USER', 'postgres')
       - DATABASE_PASSWORD=shokooh # Matches os.getenv('DATABASE_PASSWORD', 'your_password')
       - DATABASE_HOST=host.docker.internal # For Docker Desktop to reach localhost PostgreSQL
       - DATABASE_PORT=5432 # Matches os.getenv('DATABASE_PORT', 5432)
@@ -42,21 +51,39 @@ services:
       - redis
     networks:
       - my_celery_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"] # Example health check endpoint
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   flower:
     build: . # Build from your current Django project directory
-    command: celery -A algo_trade flower --broker=redis://redis:6379/0 --port=5555
+    command: celery -A algo_trade flower --broker=redis://localhost:6379/0 --port=5555 --max_tasks=1000
     ports:
       - "5555:5555" # Map Flower's port to your host
     environment:
+      - REDIS_HOST=redis
       - DJANGO_SETTINGS_MODULE=algo_trade.settings
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DATABASE_NAME=algo_db # Matches os.getenv('DATABASE_NAME', 'algo_db')
+      - DATABASE_USER=postgres # Matches os.getenv('DATABASE_USER', 'postgres')
+      - DATABASE_PASSWORD=shokooh # Matches os.getenv('DATABASE_PASSWORD', 'your_password')
+      - DATABASE_HOST=host.docker.internal # For Docker Desktop to reach localhost PostgreSQL
+      - DATABASE_PORT=5432 # Matches os.getenv('DATABASE_PORT', 5432)
     depends_on:
       - redis
       - celery_worker # Flower needs workers to monitor
     networks:
       - my_celery_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5555"] # Check if Flower is up
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 volumes:
   redis_data: # Define a named volume for Redis data persistence
