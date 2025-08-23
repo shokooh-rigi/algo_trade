@@ -173,10 +173,15 @@ LOG_CANCEL_PREFIX = 'CANCEL => '
 ASSET_LOG_PREFIX = 'ASSET => '
 MARKET_DATA_LOG_PREFIX = 'MARKET =>'
 
+#redis config
+REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
+REDIS_PORT : int = int(os.getenv('REDIS_PORT', '6379'))
+REDIS_DB : int = int(os.getenv('REDIS_DB', 0))
+
 
 # Celery settings
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
+CELERY_BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+CELERY_RESULT_BACKEND = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 CELERY_TASK_RESULT_EXPIRES = int(os.getenv("CELERY_TASK_RESULT_EXPIRES", 60))
 CELERY_WORKER_LOG_FORMAT = "CELERY-LOG =>  %(asctime)s [%(levelname)s] %(name)s: %(message)s"
 CELERY_WORKER_TASK_LOG_FORMAT = "CELERY-LOG =>  %(asctime)s [%(levelname)s] %(name)s: %(message)s"
@@ -185,11 +190,6 @@ CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_WORKER_SEND_TASK_EVENTS = True
 CELERY_TASK_SEND_SENT_EVENT = True
 CELERY_TASK_TIME_LIMIT = 300
-#redis config
-REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
-REDIS_PORT : int = int(os.getenv('REDIS_PORT', '6379'))
-REDIS_DB : int = int(os.getenv('REDIS_DB', 0))
-
 
 #Logging and Sentry settings
 LOGGING = {
