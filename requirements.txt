@@ -4,20 +4,22 @@
 altgraph==0.17.4
 annotated-types==0.7.0
 future==1.0.0
-numpy==2.0.2
+numpy==1.26.4  # Corrected to 1.26.4 to avoid NaN import error with pandas_ta
 python-dateutil==2.9.0.post0
 typing_extensions==4.12.2
 wcwidth==0.2.13
 pybreaker==1.4.0
+pandas==2.3.2
+pandas_ta==0.3.14b0
 
 # =====================
 # Django & Extensions
 # =====================
 Django==4.2.16
 django-celery-beat==2.8.1
+django-celery-results==2.5.1
 django-timezone-field==7.0
 djangorestframework==3.15.2
-django_celery_results==2.5.1
 sqlparse==0.5.1
 tzdata==2025.2
 whitenoise==6.9.0
@@ -34,6 +36,8 @@ vine==5.1.0
 # =====================
 # Database Drivers
 # =====================
+psycopg==3.2.9
+psycopg2-binary==2.9.10
 
 # =====================
 # Redis & Caching
@@ -48,14 +52,13 @@ requests==2.32.3
 urllib3==2.2.3
 certifi==2024.8.30
 charset-normalizer==3.4.0
+idna==3.10
 six==1.16.0
 
 # =====================
 # Logging, Monitoring & Sentry
 # =====================
 sentry-sdk==2.22.0
-
-
 
 # =====================
 # CLI & Shell Utilities
@@ -80,14 +83,14 @@ tornado==6.4.2
 # Miscellaneous
 # =====================
 humanize==4.11.0
+packaging==25.0 # Added from pip freeze
 python-crontab==3.2.0
-pydevd-pycharm~=223.8836.43
+pydevd-pycharm==223.8836.43
 pydantic==2.9.2
 pydantic_core==2.23.4
+pytz==2025.2 # Added from pip freeze (was implicitly included with pandas)
 
 # =====================
 # Environment Management
 # =====================
 python-dotenv==1.0.1
-
-pandas~=2.3.2
