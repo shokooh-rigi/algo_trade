@@ -19,16 +19,15 @@ app.autodiscover_tasks()
 
 app.conf.update(
     worker_prefetch_multiplier=1,
-    timezone="Asia/Tehran",
     enable_utc=True,
     broker_connection_retry_on_startup=True,
     task_track_started=True,
     task_acks_late=True,
     task_reject_on_worker_lost=True,
-    task_time_limit=100,
-    task_soft_time_limit=60,
-    worker_proc_alive_timeout=30,
-    worker_soft_shutdown_timeout=10,
+    task_time_limit=1000,
+    task_soft_time_limit=600,
+    worker_proc_alive_timeout=300,
+    worker_soft_shutdown_timeout=100,
     worker_enable_soft_shutdown_on_idle=True,
     worker_max_tasks_per_child=100,
 )

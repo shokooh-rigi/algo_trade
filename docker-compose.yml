@@ -14,7 +14,7 @@ services:
 
   celery_worker:
     build: . # Build from your current Django project directory
-    command: celery -A algo_trade worker -l info # Command to start the Celery worker
+    command: celery -A algo_trade worker -l debug # Command to start the Celery worker
     volumes:
       - .:/app # Mount your Django project into the container
     environment:
@@ -52,15 +52,14 @@ services:
     networks:
       - my_celery_network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"] # Example health check endpoint
+      test: [ "CMD-SHELL", "ps aux | grep 'celery -A algo_trade beat' | grep -v grep" ]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
 
   flower:
     build: . # Build from your current Django project directory
-    command: celery -A algo_trade flower --broker=redis://localhost:6379/0 --port=5555 --max_tasks=1000
+    command: celery -A algo_trade flower --port=5555 --max_tasks=1000
     ports:
       - "5555:5555" # Map Flower's port to your host
     environment:
