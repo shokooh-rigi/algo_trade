@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, condecimal
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime
 
 
@@ -27,7 +27,7 @@ class NobitexCancelOrderRequest(BaseModel):
     Endpoint: POST v1/market/orders/update-status
     """
     order: int = Field(..., description="Nobitex internal order ID")
-    status: str = Field("canceled", const=True, description="Status to set for cancellation")
+    status: Literal["canceled"] = Field("canceled", description="Status to set for cancellation")
 
 class NobitexGetBalanceRequest(BaseModel):
     """

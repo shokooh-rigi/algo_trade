@@ -52,6 +52,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -152,9 +153,9 @@ WALLEX_GET_BALANCES_PATH : str = os.getenv('WALLEX_GET_BALANCES_PATH', 'v1/accou
 WALLEX_OHLCV_HISTORY_PATH : str = os.getenv('WALLEX_OHLCV_HISTORY_PATH',"/v1/market/ohlcv")
 
 #url nobitex
-NOBITEX_BASE_URL : str = os.getenv('NOBITEX_BASE_URL', 'https://api.nobitex.ir/')
+NOBITEX_BASE_URL : str = os.getenv('NOBITEX_BASE_URL', 'https://apiv2.nobitex.ir/')
 NOBITEX_ORDER_BOOK_PATH : str = os.getenv('NOBITEX_ORDER_BOOK_PATH', 'v2/depth/all')
-NOBITEX_ORDER_BOOK_PATH_BY_SYMBOL : str = os.getenv('NOBITEX_ORDER_BOOK_PATH_BY_SYMBOL', 'v1/depth')
+NOBITEX_ORDER_BOOK_PATH_BY_SYMBOL : str = os.getenv('NOBITEX_ORDER_BOOK_PATH_BY_SYMBOL', '/v3/orderbook/')
 NOBITEX_MARKET_PATH : str = os.getenv('NOBITEX_MARKET_PATH', 'v1/markets')
 NOBITEX_ASSET_PATH : str = os.getenv('NOBITEX_ASSET_PATH', 'v1/currencies')
 
@@ -162,8 +163,9 @@ NOBITEX_ORDER_CREATE_PATH : str = os.getenv('NOBITEX_ORDER_CREATE_PATH', 'market
 NOBITEX_ACTIVE_ORDERS_PATH : str = os.getenv('NOBITEX_ACTIVE_ORDERS_PATH', 'v1/account/openOrders') # This is a GET endpoint.
 NOBITEX_ORDER_INFO_PATH : str = os.getenv('NOBITEX_ORDER_INFO_PATH', 'v1/market/orders/status') # This is a POST endpoint.
 NOBITEX_CANCEL_ORDER_PATH : str = os.getenv('NOBITEX_CANCEL_ORDER_PATH', 'v1/market/orders/update-status') # This is a POST endpoint.
-NOBITEX_GET_BALANCES_PATH : str = os.getenv('NOBITEX_GET_BALANCES_PATH', 'v2/users/wallets/balance') # This is a POST endpoint.
+NOBITEX_GET_BALANCES_PATH : str = os.getenv('NOBITEX_GET_BALANCES_PATH', 'users/wallets/balance') # This is a POST endpoint.
 NOBITEX_OHLCV_HISTORY_PATH : str = os.getenv('NOBITEX_OHLCV_HISTORY_PATH', "market/udf/history")
+NOBITEX_STOP_LOOSE_PATH : str = os.getenv('NOBITEX_STOP_LOOSE_PATH', '/market/orders/add') # This is a POST endpoint.
 
 #log prefix
 STRATEGY_PROCESSOR_LOG_PREFIX = 'PROCESSOR => '

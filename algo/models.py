@@ -371,10 +371,10 @@ class AccountBalance(BaseModel):
             raise ValidationError("Unbalance threshold must be between 1 and 99")
 
 
-class Market(BaseModel):
+class Market(models.Model):
     """
     Model to store market information from API.
-   """
+    """
     provider = models.CharField(
         max_length=50,
         choices=[(provider.value, provider.name) for provider in ProviderEnum],
@@ -427,12 +427,12 @@ class Market(BaseModel):
         blank=True,
         help_text="The Persian name of the quote asset."
     )
-    step_size = models.IntegerField(
-        default=1,
+    step_size = models.FloatField(  # Changed to FloatField to match API responses
+        default=1.0,
         help_text="The step size for volume adjustments."
     )
-    tick_size = models.IntegerField(
-        default=1,
+    tick_size = models.FloatField(  # Changed to FloatField to match API responses
+        default=1.0,
         help_text="The step size for price adjustments."
     )
     min_qty = models.FloatField(
@@ -443,103 +443,94 @@ class Market(BaseModel):
     min_notional = models.FloatField(
         null=True,
         blank=True,
-        help_text="The minimum trade amount in the quote asset.")
+        help_text="The minimum trade amount in the quote asset."
+    )
     timestamp_created_at = models.DateTimeField(
         null=True,
         blank=True,
         help_text="The timestamp when the market was created."
     )
+    # Adding a default for created_at and updated_at for better tracking
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.symbol
 
-    def adjust_price(self, price):
+    def adjust_price(self, price: float) -> float:
         """
         Adjust the given price to match the tick size requirement for this market.
-
-        Args:
-            price (float): The price to adjust.
-
-        Returns:
-            float: The adjusted price.
+        Handles cases where tick_size might be None or 0.
         """
-        if self.tick_size :
-            adjusted_price = round(number=price, ndigits=self.tick_size)
-            return adjusted_price
-        return int(price)
+        if self.tick_size is not None and self.tick_size > 0:
+            # Calculate the number of decimal places from tick_size
+            # Example: tick_size = 0.001 -> 3 decimal places
+            # If tick_size is 1, ndigits will be 0
+            if self.tick_size < 1:
+                ndigits = len(str(self.tick_size).split('.')[-1])
+                adjusted_price = round(price / self.tick_size) * self.tick_size
+                return round(adjusted_price, ndigits)  # Round to correct precision
+            return round(price)  # If tick_size is 1 or more, round to nearest integer
+        return float(price)  # Return original price if no tick_size or tick_size is 0
 
-    def adjust_quantity(self, quantity:float):
+    def adjust_quantity(self, quantity: float) -> float:
         """
         Adjust the given quantity to be within the step size and allowable range for this market.
-
-        Args:
-            quantity (float): The quantity to adjust.
-
-        Returns:
-            float: The adjusted quantity.
+        Handles cases where step_size or min_qty might be None or 0.
         """
-        if self.min_qty:
-            if quantity < self.min_qty:
-                return self.min_qty
-        if self.step_size:
-                adjusted_quantity = round(number=quantity, ndigits=self.step_size)
-                return adjusted_quantity
-        return int(quantity)
+        if self.min_qty is not None and quantity < self.min_qty:
+            quantity = self.min_qty  # Ensure quantity meets minimum requirement
 
-    def adjust_min_notional(self, amount):
+        if self.step_size is not None and self.step_size > 0:
+            # Calculate the number of decimal places from step_size
+            if self.step_size < 1:
+                ndigits = len(str(self.step_size).split('.')[-1])
+                adjusted_quantity = round(quantity / self.step_size) * self.step_size
+                return round(adjusted_quantity, ndigits)  # Round to correct precision
+            return round(quantity)  # If step_size is 1 or more, round to nearest integer
+        return float(quantity)  # Return original quantity if no step_size or step_size is 0
+
+    def adjust_min_notional(self, amount: float) -> float:
         """
-        Validate if the price value meets the minimum notional requirement.
-
-        Args:
-            amount (float): The amount to validate.
-
-        Returns:
-           valid amount.
+        Validate if the amount meets the minimum notional requirement.
         """
-        if amount >= self.min_notional:
-            return amount
-        else:
+        if self.min_notional is not None and amount < self.min_notional:
             return self.min_notional
+        return amount
 
-    def adjust_min_qty(self, quantity):
+    def adjust_min_qty(self, quantity: float) -> float:
         """
-        Validate if the price value meets the minimum qty requirement.
-
-        Args:
-            quantity (float): The quantity  to validate.
-
-        Returns:
-           valid quantity.
+        Validate if the quantity meets the minimum quantity requirement.
         """
-        if quantity >= self.min_qty:
-            return quantity
-        else:
+        if self.min_qty is not None and quantity < self.min_qty:
             return self.min_qty
+        return quantity
 
     @classmethod
-    def create_or_update_instance(cls, symbol_name, **kwargs):
+    def create_or_update_instance(cls, symbol_name: str, provider_name: str, **kwargs):
         """
         Create or update an instance of the Market model.
-
-        Args:
-            symbol_name (str): The symbol of the market (e.g., 'BTCUSDT').
-            **kwargs: Additional fields to update or set.
-
-        Returns:
-            market (Market): The created or updated Market instance.
-            created (bool): True if created, False if updated.
         """
-        # Attempt to get the existing market instance by its symbol
-        market = cls.objects.filter(symbol=symbol_name).first()
+        market, created = cls.objects.get_or_create(
+            symbol=symbol_name,
+            provider=provider_name,
+            defaults=kwargs
+        )
 
-        if market:
-            # If the market exists, update its fields using .update() method
-            cls.objects.filter(symbol=symbol_name).update(**kwargs)
-            return market, False  # False indicates the instance was updated
+        if not created:
+            # Update existing market instance with new data
+            for key, value in kwargs.items():
+                setattr(market, key, value)
+            market.save()
+            logger.info(f"Updated Market record for symbol: {symbol_name} from {provider_name}")
         else:
-            # If the market does not exist, create a new instance
-            market = cls.objects.create(symbol=symbol_name, **kwargs)
-            return market, True  # True indicates the instance was created
+            logger.info(f"Created new Market record for symbol: {symbol_name} from {provider_name}")
+
+        return market, created
+
+    class Meta:
+        # Add unique_together constraint to ensure unique (symbol, provider) pairs
+        unique_together = ('symbol', 'provider')
 
 
 class AdminSystemConfig(BaseModel):

@@ -35,10 +35,6 @@ app.conf.update(
 # Use the Django database scheduler for beat to avoid race conditions in distributed setups
 app.conf.beat_scheduler = "django_celery_beat.schedulers:DatabaseScheduler"
 
-# Scaling best practices:
-# - Run only one beat instance (multiple beats can cause duplicate tasks)
-# - Scale workers horizontally for throughput (use concurrency/autoscale env vars)
-# - Use a robust broker (Redis/RabbitMQ) and monitor queue length
 
 app.conf.beat_schedule = {
     'market_data_store_wallex': { # Specific name for Wallex
@@ -46,21 +42,21 @@ app.conf.beat_schedule = {
         'schedule': timedelta(minutes=2),  # Run all active strategies every 2 minutes
         'args': (ProviderEnum.WALLEX.value, {}), # Pass empty config dict for now
     },
-    'market_data_store_nobitex': { # Specific name for Nobitex
-        'task': 'algo.tasks.fetch_and_store_markets',
-        'schedule': timedelta(minutes=2),  # Run all active strategies every 2 minutes
-        'args': (ProviderEnum.NOBITEX.value, {}), # Pass empty config dict for now
-    },
+    # 'market_data_store_nobitex': { # Specific name for Nobitex
+    #     'task': 'algo.tasks.fetch_and_store_markets',
+    #     'schedule': timedelta(minutes=2),  # Run all active strategies every 2 minutes
+    #     'args': (ProviderEnum.NOBITEX.value, {}), # Pass empty config dict for now
+    # },
     'asset_data_store_wallex': { # Specific name for Wallex
         'task': 'algo.tasks.fetch_and_store_assets',
         'schedule': crontab(day_of_week='1', hour='13', minute='30'), # Example: Monday 1:30 PM
         'args': (ProviderEnum.WALLEX.value, {}),
     },
-    'asset_data_store_nobitex': { # Specific name for Nobitex
-        'task': 'algo.tasks.fetch_and_store_assets',
-        'schedule': crontab(day_of_week='1', hour='13', minute='45'), # Example: Monday 1:45 PM
-        'args': (ProviderEnum.NOBITEX.value, {}),
-    },
+    # 'asset_data_store_nobitex': { # Specific name for Nobitex
+    #     'task': 'algo.tasks.fetch_and_store_assets',
+    #     'schedule': crontab(day_of_week='1', hour='13', minute='45'), # Example: Monday 1:45 PM
+    #     'args': (ProviderEnum.NOBITEX.value, {}),
+    # },
     'strategy_processor_run_all': {
         'task': 'algo.tasks.run_all_strategies',
         'schedule': timedelta(minutes=2), # Run all active strategies every 2 minutes

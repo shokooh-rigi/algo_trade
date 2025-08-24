@@ -56,6 +56,34 @@ class NobitexProvider(IProvider):
             "Content-Type": "application/json",
         }
 
+    def map_markets_to_schema(self, raw_data: dict) -> List[Dict[str, Any]]:
+        """
+        Maps raw Nobitex market data to a standardized schema.
+        """
+        standardized_list = []
+
+        # Safely get the symbols data from the nested structure
+        symbols = raw_data.get('result', {}).get('symbols', {})
+
+        for symbol_name, symbol_data in symbols.items():
+            standardized_list.append({
+                'provider': self.provider_name,
+                'symbol': symbol_name,
+                'base_asset': symbol_data.get('srcCurrency', ''),
+                'base_asset_precision': symbol_data.get('srcCurrencyPrecision', 0),
+                'quote_asset': symbol_data.get('dstCurrency', ''),
+                'quote_precision': symbol_data.get('dstCurrencyPrecision', 0),
+                'fa_name': symbol_data.get('faName', ''),
+                'fa_base_asset': symbol_data.get('faSrcCurrency', ''),
+                'fa_quote_asset': symbol_data.get('faDstCurrency', ''),
+                'step_size': float(symbol_data.get('step', 1)),
+                'tick_size': float(symbol_data.get('tick', 1)),
+                'min_qty': float(symbol_data.get('minAmount', 0.0)),
+                'min_notional': float(symbol_data.get('minPrice', 0.0)),
+                'timestamp_created_at': symbol_data.get('createdAt', None),
+            })
+        return standardized_list
+
     def fetch_all_order_books(self) -> Dict[str, Any]:
         """
         Fetch the latest order books for all markets on Nobitex.

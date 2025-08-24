@@ -48,6 +48,36 @@ class WallexProvider(IProvider):
             "Content-Type": "application/json",
         }
 
+    def map_markets_to_schema(self, raw_data: dict) -> List[Dict[str, Any]]:
+        """
+        Maps raw Wallex market data to a standardized schema.
+        """
+        standardized_list = []
+
+        # Safely get the markets data from the nested structure
+        markets = raw_data.get('payload', {}).get('markets', {})
+
+        # Iterate over the items in the markets dictionary
+        for market_key, market_data in markets.items():
+            standardized_list.append({
+                'provider': self.provider_name,
+                'symbol': market_key,
+                'base_asset': market_data.get('baseAssetSymbol', ''),
+                'base_asset_precision': market_data.get('baseAssetPrecision', 0),
+                'quote_asset': market_data.get('quoteAssetSymbol', ''),
+                'quote_precision': market_data.get('quotePrecision', 0),
+                'fa_name': market_data.get('persian_title', ''),
+                'fa_base_asset': market_data.get('baseAssetSymbol', ''),  # Assuming fa_base_asset is same as base asset
+                'fa_quote_asset': market_data.get('quoteAssetSymbol', ''),
+                # Assuming fa_quote_asset is same as quote asset
+                'step_size': float(market_data.get('stepSize', 1)),
+                'tick_size': float(market_data.get('tickSize', 1)),
+                'min_qty': float(market_data.get('minQty', 0.0)),
+                'min_notional': float(market_data.get('minNotional', 0.0)),
+                'timestamp_created_at': market_data.get('createdAt', None),
+            })
+        return standardized_list
+
     def fetch_all_order_books(self) -> Dict[str, Any]:
         """
         Fetch the latest order books for all markets on Wallex.

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 
 class IProvider(ABC):
@@ -135,4 +135,11 @@ class IProvider(ABC):
         Returns:
             Dict[str, Any]: A dictionary containing the response from the cancellation request.
         """
+        pass
+
+    @abstractmethod
+    def map_markets_to_schema(
+            self,
+            raw_data: dict
+    ) -> List[Dict[str, Any]]:
         pass
