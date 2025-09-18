@@ -271,3 +271,106 @@ def fetch_and_store_assets(self,provider_name:str, provider_config:dict):
             self.retry(exc=e)
         except MaxRetriesExceededError:
             logger.critical(f"{settings.ASSET_LOG_PREFIX} Task retry limit exceeded.")
+
+
+@shared_task(bind=True)
+def strategy_processor_task(self):
+    """
+    Celery task to run the strategy processor service.
+    Processes all active strategies and generates deals.
+    """
+    logger.info(f"{settings.STRATEGY_PROCESSOR_LOG_PREFIX} Starting strategy processor task.")
+    try:
+        from algo.services.strategy_processor_service import StrategyProcessorService
+        
+        processor = StrategyProcessorService()
+        result = processor.process_all_strategies()
+        
+        logger.info(f"{settings.STRATEGY_PROCESSOR_LOG_PREFIX} Strategy processor task completed. "
+                   f"Result: {result}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"{settings.STRATEGY_PROCESSOR_LOG_PREFIX} Error in strategy processor task: {e}", exc_info=True)
+        try:
+            self.retry(exc=e, countdown=60)
+        except MaxRetriesExceededError:
+            logger.critical(f"{settings.STRATEGY_PROCESSOR_LOG_PREFIX} Strategy processor task retry limit exceeded.")
+
+
+@shared_task(bind=True)
+def deal_processor_task(self):
+    """
+    Celery task to run the deal processor service.
+    Processes all unprocessed deals and places orders.
+    """
+    logger.info(f"{settings.DEAL_PROCESSING_LOG_PREFIX} Starting deal processor task.")
+    try:
+        from algo.services.deal_processor_service import DealProcessorService
+        
+        processor = DealProcessorService()
+        result = processor.process_unprocessed_deals()
+        
+        logger.info(f"{settings.DEAL_PROCESSING_LOG_PREFIX} Deal processor task completed. "
+                   f"Result: {result}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"{settings.DEAL_PROCESSING_LOG_PREFIX} Error in deal processor task: {e}", exc_info=True)
+        try:
+            self.retry(exc=e, countdown=60)
+        except MaxRetriesExceededError:
+            logger.critical(f"{settings.DEAL_PROCESSING_LOG_PREFIX} Deal processor task retry limit exceeded.")
+
+
+@shared_task(bind=True)
+def order_inquiry_task(self):
+    """
+    Celery task to check order statuses and update them.
+    """
+    logger.info(f"{settings.INQUIRY_ORDER_LOG_PREFIX} Starting order inquiry task.")
+    try:
+        from algo.services.order_management_service import OrderManagementService
+        
+        order_service = OrderManagementService()
+        
+        # Get active orders for all providers
+        active_orders = order_service.get_active_orders()
+        
+        updated_count = 0
+        for order in active_orders:
+            try:
+                # Check order status with provider
+                provider = ProviderFactory.create_provider(
+                    provider_name=order.store_client.provider,
+                    provider_config={}
+                )
+                
+                order_info = provider.order_info(
+                    api_key=order.store_client.api_key,
+                    client_order_id=order.client_order_id
+                )
+                
+                # Update order status if changed
+                if order_info and 'status' in order_info:
+                    new_status = order_info['status']
+                    if order.status != new_status:
+                        order.status = new_status
+                        order.save()
+                        updated_count += 1
+                        logger.info(f"Updated order {order.client_order_id} status to {new_status}")
+                        
+            except Exception as e:
+                logger.error(f"Error checking order {order.client_order_id}: {e}")
+                continue
+        
+        logger.info(f"{settings.INQUIRY_ORDER_LOG_PREFIX} Order inquiry task completed. "
+                   f"Updated {updated_count} orders.")
+        return {"status": "success", "updated_orders": updated_count}
+        
+    except Exception as e:
+        logger.error(f"{settings.INQUIRY_ORDER_LOG_PREFIX} Error in order inquiry task: {e}", exc_info=True)
+        try:
+            self.retry(exc=e, countdown=60)
+        except MaxRetriesExceededError:
+            logger.critical(f"{settings.INQUIRY_ORDER_LOG_PREFIX} Order inquiry task retry limit exceeded.")

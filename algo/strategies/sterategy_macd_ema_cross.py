@@ -23,6 +23,12 @@ class StrategyMacdEmaCross(StrategyInterface):
     Implements a trading strategy based on MACD cross, EMA cross,
     volume analysis, and order book depth, utilizing pandas_ta for indicators.
     Configuration is loaded from a StrategyConfig model.
+
+    Upgrades:
+    - Higher timeframe confirmation using EMA trend (default 4h)
+    - ADX trend-strength filter and ATR volatility floor to avoid chop
+    - Volume percentile confirmation (stronger than simple average)
+    - Cooldown period between opposite trades to reduce churn
     """
 
     def __init__(self, strategy_config_id: int, provider_name: ProviderEnum, market_symbol: str):
@@ -38,6 +44,7 @@ class StrategyMacdEmaCross(StrategyInterface):
         self.market_symbol = market_symbol
         self.current_deal: Optional[Deal] = None
         self.price_history: pd.DataFrame = pd.DataFrame()
+        self.htf_history: pd.DataFrame = pd.DataFrame()  # Higher timeframe history
         self.provider_instance = None
         self.strategy_config: Optional[StrategyConfig] = None  # Store the StrategyConfig instance
         self.strategy_params = None  # Store validated strategy_configs from Pydantic schema
@@ -51,6 +58,16 @@ class StrategyMacdEmaCross(StrategyInterface):
         self.order_book_depth_threshold = None
         self.initial_history_period_days = None
         self.resolution = None
+
+        # New parameters (can be promoted to DB config later)
+        self.htf_resolution = '4h'
+        self.htf_ema_length = 50
+        self.min_adx = Decimal('18')  # skip if trend is weak
+        self.min_atr_percent = Decimal('0.15')  # ATR as % of price
+        self.volume_percentile_window = 50
+        self.volume_percentile_threshold = 70  # latest volume must be above this percentile
+        self.trade_cooldown_minutes = 45
+        self._last_trade_ts: Optional[int] = None
 
         logger.info(
             f"Strategy {self.__class__.__name__} initialized for {market_symbol} on {provider_name.value} with config ID {strategy_config_id}.")
@@ -114,6 +131,16 @@ class StrategyMacdEmaCross(StrategyInterface):
                 logger.warning(
                     f"Could not fetch initial historical data for {self.market_symbol}. Strategy might not function correctly.")
 
+            # Higher timeframe history for trend confirmation
+            htf_days = max(14, self.initial_history_period_days)
+            htf_start_ts = int((datetime.now() - timedelta(days=htf_days)).timestamp())
+            htf_raw = self._fetch_historical_data(htf_start_ts, end_timestamp, resolution=self.htf_resolution)
+            if htf_raw:
+                self.htf_history = pd.DataFrame(htf_raw)
+                self.htf_history['time'] = pd.to_datetime(self.htf_history['time'], unit='s')
+                self.htf_history = self.htf_history.set_index('time')
+                self._calculate_htf_indicators()
+
         # Check for any active deals for this strategy/market
         self.current_deal = Deal.objects.filter(
             strategy_name=self.__class__.__name__,
@@ -125,6 +152,7 @@ class StrategyMacdEmaCross(StrategyInterface):
 
         if self.current_deal:
             logger.info(f"Found existing active deal {self.current_deal.client_deal_id} for {self.market_symbol}.")
+            self._last_trade_ts = int(self.current_deal.created_at.timestamp())
 
         # Update strategy state to RUNNING after successful initialization
         StrategyConfig.update_state(self.strategy_config_id, StrategyState.RUNNING)
@@ -182,11 +210,27 @@ class StrategyMacdEmaCross(StrategyInterface):
             # If not using historical data, rely on latest_data directly (e.g., for simple price action)
             latest_close_price = Decimal(str(latest_data['close']))
             latest_volume = Decimal(str(latest_data['volume']))
-            # If historical data is not needed, MACD/EMA crosses won't be calculated.
-            # The strategy logic would need to adapt to this. For now, assume these are required.
             logger.warning(
                 f"Strategy {self.strategy_config_id} is configured not to use historical data. MACD/EMA signals will not be generated.")
             return "Historical data not enabled for indicators"
+
+        # 1.1 Update HTF periodically from provider (lightweight: only every N minutes)
+        if self.htf_history.empty or (self.htf_history.index.max() < new_candle_time - pd.Timedelta(self.htf_resolution)):
+            try:
+                now_ts = int(time.time())
+                htf_raw = self.provider_instance.fetch_ohlcv_data(
+                    symbol=self.market_symbol,
+                    resolution=self.htf_resolution,
+                    from_timestamp=now_ts - (14 * 24 * 3600),
+                    to_timestamp=now_ts
+                )
+                if htf_raw:
+                    self.htf_history = pd.DataFrame(htf_raw)
+                    self.htf_history['time'] = pd.to_datetime(self.htf_history['time'], unit='s')
+                    self.htf_history = self.htf_history.set_index('time')
+                    self._calculate_htf_indicators()
+            except Exception as e:
+                logger.warning(f"Failed to refresh HTF data: {e}")
 
         # 2. Analyze Order Book Depth
         order_book_ratio = Decimal('1.0')
@@ -210,28 +254,34 @@ class StrategyMacdEmaCross(StrategyInterface):
             ema_cross_buy_signal = (latest_short_ema > latest_long_ema) and (prev_short_ema <= prev_long_ema)
             ema_cross_sell_signal = (latest_short_ema < latest_long_ema) and (prev_short_ema >= prev_long_ema)
 
-            if len(self.price_history) >= self.fast_ema_period:
-                avg_volume = self.price_history['volume'].iloc[-self.fast_ema_period:].mean()
-                volume_confirmation = latest_volume > Decimal(str(avg_volume * Decimal('1.2')))
-            else:
-                volume_confirmation = False
+            volume_confirmation = self._volume_percentile_confirmation()
 
             buy_pressure_confirmation = order_book_ratio > Decimal('1.0')
             sell_pressure_confirmation = order_book_ratio < self.order_book_depth_threshold
 
+            # Higher timeframe trend filter
+            htf_trend_up, htf_trend_down = self._htf_trend()
+
+            # ADX and ATR filters to avoid chop/low volatility
+            adx_ok = self._adx_filter_ok()
+            atr_ok = self._atr_filter_ok()
+
+            cooldown_ok = self._cooldown_ok()
+
             # Generate BUY signal
-            if (macd_cross_buy_signal or ema_cross_buy_signal) and volume_confirmation and buy_pressure_confirmation:
+            if cooldown_ok and (macd_cross_buy_signal or ema_cross_buy_signal) and volume_confirmation and buy_pressure_confirmation and htf_trend_up and adx_ok and atr_ok:
                 if not self.current_deal or self.current_deal.side == ProcessedSideEnum.SELL.value:
                     logger.info(f"Strong BUY signal for {self.market_symbol} at {latest_close_price}.")
                     self._generate_deal(ProcessedSideEnum.BUY, latest_close_price)
+                    self._last_trade_ts = int(time.time())
                     return "Buy signal generated"
 
             # Generate SELL signal
-            elif (
-                    macd_cross_sell_signal or ema_cross_sell_signal) and volume_confirmation and sell_pressure_confirmation:
+            elif cooldown_ok and (macd_cross_sell_signal or ema_cross_sell_signal) and volume_confirmation and sell_pressure_confirmation and htf_trend_down and adx_ok and atr_ok:
                 if self.current_deal and self.current_deal.side == ProcessedSideEnum.BUY.value:
                     logger.info(f"Strong SELL signal for {self.market_symbol} at {latest_close_price}.")
                     self._generate_deal(ProcessedSideEnum.SELL, latest_close_price)
+                    self._last_trade_ts = int(time.time())
                     return "Sell signal generated"
 
         logger.debug(f"No strong signal for {self.market_symbol}.")
@@ -263,6 +313,8 @@ class StrategyMacdEmaCross(StrategyInterface):
 
         self.price_history['close_float'] = self.price_history['close'].astype(float)
         self.price_history['volume_float'] = self.price_history['volume'].astype(float)
+        self.price_history['high_float'] = self.price_history['high'].astype(float)
+        self.price_history['low_float'] = self.price_history['low'].astype(float)
 
         macd_output = ta.macd(
             self.price_history['close_float'],
@@ -298,7 +350,68 @@ class StrategyMacdEmaCross(StrategyInterface):
             append=False
         ).apply(lambda x: Decimal(str(x)) if pd.notna(x) else Decimal('0'))
 
-        self.price_history.drop(columns=['close_float', 'volume_float'], errors='ignore', inplace=True)
+        # ADX and ATR for chop/volatility filters
+        adx_df = ta.adx(high=self.price_history['high_float'], low=self.price_history['low_float'], close=self.price_history['close_float'])
+        if isinstance(adx_df, pd.DataFrame) and 'ADX_14' in adx_df.columns:
+            self.price_history['adx'] = adx_df['ADX_14'].apply(lambda x: Decimal(str(x)) if pd.notna(x) else Decimal('0'))
+        else:
+            self.price_history['adx'] = Decimal('0')
+
+        atr_series = ta.atr(high=self.price_history['high_float'], low=self.price_history['low_float'], close=self.price_history['close_float'])
+        if atr_series is not None:
+            self.price_history['atr'] = atr_series.apply(lambda x: Decimal(str(x)) if pd.notna(x) else Decimal('0'))
+        else:
+            self.price_history['atr'] = Decimal('0')
+
+        self.price_history.drop(columns=['close_float', 'volume_float', 'high_float', 'low_float'], errors='ignore', inplace=True)
+
+    def _calculate_htf_indicators(self) -> None:
+        if self.htf_history.empty:
+            return
+        self.htf_history['close_float'] = self.htf_history['close'].astype(float)
+        self.htf_history['ema_htf'] = ta.ema(self.htf_history['close_float'], length=self.htf_ema_length)
+        self.htf_history.drop(columns=['close_float'], errors='ignore', inplace=True)
+
+    def _htf_trend(self) -> (bool, bool):
+        if self.htf_history.empty or 'ema_htf' not in self.htf_history.columns:
+            return True, True  # do not block signals if HTF not available
+        last_close = Decimal(str(self.htf_history['close'].iloc[-1]))
+        last_ema = Decimal(str(self.htf_history['ema_htf'].iloc[-1])) if pd.notna(self.htf_history['ema_htf'].iloc[-1]) else Decimal('0')
+        return last_close > last_ema, last_close < last_ema
+
+    def _adx_filter_ok(self) -> bool:
+        if 'adx' not in self.price_history.columns:
+            return True
+        last_adx = self.price_history['adx'].iloc[-1]
+        try:
+            return Decimal(str(last_adx)) >= self.min_adx
+        except Exception:
+            return True
+
+    def _atr_filter_ok(self) -> bool:
+        if 'atr' not in self.price_history.columns or self.price_history['atr'].iloc[-1] <= 0:
+            return True
+        last_atr = Decimal(str(self.price_history['atr'].iloc[-1]))
+        last_close = Decimal(str(self.price_history['close'].iloc[-1]))
+        if last_close <= 0:
+            return False
+        atr_percent = (last_atr / last_close) * Decimal('100')
+        return atr_percent >= self.min_atr_percent
+
+    def _volume_percentile_confirmation(self) -> bool:
+        try:
+            vol_window = self.price_history['volume'].iloc[-self.volume_percentile_window:]
+            latest_vol = Decimal(str(vol_window.iloc[-1]))
+            rank = (vol_window.rank(pct=True).iloc[-1]) * 100
+            return Decimal(str(rank)) >= Decimal(str(self.volume_percentile_threshold)) and latest_vol > 0
+        except Exception:
+            return False
+
+    def _cooldown_ok(self) -> bool:
+        if not self._last_trade_ts:
+            return True
+        elapsed = int(time.time()) - self._last_trade_ts
+        return elapsed >= self.trade_cooldown_minutes * 60
 
     def _generate_deal(self, side: ProcessedSideEnum, price: Decimal):
         """

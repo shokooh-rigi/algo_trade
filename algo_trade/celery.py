@@ -57,13 +57,26 @@ app.conf.beat_schedule = {
     #     'schedule': crontab(day_of_week='1', hour='13', minute='45'), # Example: Monday 1:45 PM
     #     'args': (ProviderEnum.NOBITEX.value, {}),
     # },
+    'strategy_processor_service': {
+        'task': 'algo.tasks.strategy_processor_task',
+        'schedule': timedelta(minutes=1), # Run strategy processor every minute
+    },
+    'deal_processor_service': {
+        'task': 'algo.tasks.deal_processor_task',
+        'schedule': timedelta(minutes=1), # Run deal processor every minute
+    },
+    'order_inquiry_service': {
+        'task': 'algo.tasks.order_inquiry_task',
+        'schedule': timedelta(minutes=2), # Check order status every 2 minutes
+    },
+    # Legacy tasks (kept for backward compatibility)
     'strategy_processor_run_all': {
         'task': 'algo.tasks.run_all_strategies',
-        'schedule': timedelta(minutes=2), # Run all active strategies every 2 minutes
+        'schedule': timedelta(minutes=5), # Run legacy strategy task every 5 minutes
     },
     'deal_processing_fallback': { # Renamed to clarify its fallback role
         'task': 'algo.tasks.dispatch_deal_processing_task',
-        'schedule': timedelta(minutes=2), # Periodically check for unprocessed deals
+        'schedule': timedelta(minutes=3), # Periodically check for unprocessed deals
     },
     'inquiry_order_status_periodic': { # Renamed for clarity
         'task': 'algo.tasks.inquiry_orders_task',

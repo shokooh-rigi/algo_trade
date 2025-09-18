@@ -1,6 +1,6 @@
 import logging
 
-from providers.nobitex_provider import NobitexProvider
+# from providers.nobitex_provider import NobitexProvider
 from providers.provider_interface import IProvider
 from providers.providers_enum import ProviderEnum
 from providers.wallex_provider import WallexProvider
@@ -24,14 +24,11 @@ class ProviderFactory:
 
         Returns:
             IProvider: An instance of a provider that implements IProvider.
-
-        Raises:
-            ValueError: If the provider name is not recognized.
         """
         if provider_name == ProviderEnum.WALLEX.value:
             return WallexProvider(provider_config)
-        elif provider_name == ProviderEnum.NOBITEX.value:
-            return NobitexProvider(provider_config)  # <-- Ensure this logic exists
+        # elif provider_name == ProviderEnum.NOBITEX.value:
+        #     return NobitexProvider(provider_config) 
         else:
             raise ValueError(f"Unknown provider: {provider_name}")
 
