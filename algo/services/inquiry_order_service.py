@@ -53,7 +53,7 @@ class InquiryOrderService:
                 client_order_id=order.client_order_id,
             )
             logger.info(f'{settings.INQUIRY_ORDER_LOG_PREFIX} Inquiry order response {response} from provider{self.provider_name}')
-            response_schema = validate_response_schema(response)
+            response_schema = validate_response_schema(response)#todo: correct the type schema and this may use easier way
             if response_schema.success:
                 with transaction.atomic():
                     if response_schema.result.status == OrderStatus.PARTIALLY_FILLED:

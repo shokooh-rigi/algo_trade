@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List
 
+from providers.schemas.wallex_schemas import OrderResponseSchema #todo: be careful when use nobitex
+
 
 class IProvider(ABC):
     """
@@ -57,7 +59,7 @@ class IProvider(ABC):
             self,
             api_key: str,
             order_request_schema: Dict[str, Any],
-    ) -> Dict[str, Any]:
+    ) -> OrderResponseSchema :
         """
         Create a new order based on the provided request schema.
 
@@ -93,7 +95,7 @@ class IProvider(ABC):
             self,
             api_key: str,
             client_order_id: str,
-    ) -> Dict[str, Any]:
+    ) -> OrderResponseSchema :
         """
         Fetch details for a specific order by its ID.
 

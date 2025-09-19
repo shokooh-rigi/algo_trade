@@ -6,8 +6,16 @@ from algo_trade import settings
 from providers.provider_interface import IProvider
 from pydantic import ValidationError
 
-from providers.schemas.wallex_schemas import WallexOHLCVResponse, WallexCreateOrderRequest, WallexCreateOrderResponse, \
-    WallexActiveOrdersResponse, WallexOrderInfoResponse, WallexCancelOrderResponse, WallexGetBalancesResponse
+from providers.schemas.wallex_schemas import (
+    WallexOHLCVResponse,
+    WallexCreateOrderRequest,
+    WallexCreateOrderResponse,
+    WallexActiveOrdersResponse,
+    WallexOrderInfoResponse,
+    WallexCancelOrderResponse,
+    WallexGetBalancesResponse,
+    OrderResponseSchema,
+ )
 
 logger = logging.getLogger(__name__)
 
@@ -295,7 +303,7 @@ class WallexProvider(IProvider):
             self,
             api_key: str,
             client_order_id: str = None,
-    ) -> Dict[str, Any]:
+    ) -> OrderResponseSchema :
         """
         Fetch information for a specific order by its ID from Wallex.
         Endpoint: settings.WALLEX_ORDER_INFO_PATH + client_order_id
@@ -316,7 +324,7 @@ class WallexProvider(IProvider):
             wallex_response = WallexOrderInfoResponse.model_validate(response_json)
 
             if wallex_response.success and wallex_response.result:
-                # Return the result as a dictionary
+                #todo:  Return the result as a OrderResponseSchema
                 return {
                     "success": True,
                     "message": wallex_response.message,
@@ -325,17 +333,22 @@ class WallexProvider(IProvider):
             else:
                 logger.warning(
                     f"Error fetching order info for client_order_id {client_order_id}: {wallex_response.message}")
+                #todo:  Return the result as a OrderResponseSchema
+
                 return {"success": False, "message": wallex_response.message, "result": None}
         except ValidationError as e:
             logger.error(f"Pydantic validation error fetching order info: {e.errors()}", exc_info=True)
+            # todo:  Return the result as a OrderResponseSchema
             return {"success": False, "message": f"Validation error: {e}", "result": None}
         except requests.RequestException as e:
             logger.error(f"Network or API error fetching order info for client_order_id {client_order_id}: {e}",
                          exc_info=True)
+            # todo:  Return the result as a OrderResponseSchema
             return {"success": False, "message": f"Network or API error: {e}", "result": None}
         except Exception as e:
             logger.error(f"Unexpected error fetching order info for client_order_id {client_order_id}: {e}",
                          exc_info=True)
+            # todo:  Return the result as a OrderResponseSchema
             return {"success": False, "message": f"Unexpected error: {e}", "result": None}
 
     def cancel_order(

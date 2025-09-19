@@ -1,16 +1,9 @@
 import logging
-import time
-
 from django.db import transaction
-from typing import Dict, Any, Optional, List
-from decimal import Decimal, getcontext
+from decimal import Decimal
 from pydantic import ValidationError
 
-from algo.strategies.strategy_interface import StrategyInterface
-from algo.strategies.enums import ProcessedSideEnum, StrategyState
-from providers.providers_enum import ProviderEnum
-from algo.strategies.schemas import get_strategy_schema
-from algo.models import Deal, Order, StoreClient, AdminSystemConfig, Market, StrategyConfig
+from algo.models import Deal, Order, StoreClient, AdminSystemConfig, Market
 from algo.enums import OrderType
 from providers.schemas.wallex_schemas  import OrderResponseSchema, OrderResultSchema
 from providers.provider_factory import ProviderFactory
@@ -111,7 +104,7 @@ class DealProcessor:
             # The create_order method in providers should now return OrderResponseSchema
             api_response: OrderResponseSchema = provider_instance.create_order(
                 api_key=store_client.api_key,
-                order_request_data=order_request_data
+                order_request_schema=order_request_data
             )
 
             if api_response.success and api_response.result:

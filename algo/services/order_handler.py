@@ -177,6 +177,8 @@ class OrderHandler:
             logger.error(f"Pydantic validation error for cancel order API response for order {order.client_order_id}: {e.errors()}", exc_info=True)
             return False
         except requests.RequestException as e:
+            #todo: what is and where is :RequestException??? correct it if not exist import it
+
             logger.error(f"Network or API error canceling order {order.client_order_id}: {e}", exc_info=True)
             return False
         except Exception as e:

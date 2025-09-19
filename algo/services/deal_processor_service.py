@@ -1,9 +1,8 @@
 import logging
-from typing import Dict, Any, List, Optional
-from decimal import Decimal
+from typing import Dict, Any, List
 
 from algo.models import Deal, AdminSystemConfig
-from algo.strategies.enums import ProcessedSideEnum, StrategyState
+from algo.strategies.enums import  StrategyState
 from algo.services.order_management_service import OrderManagementService
 from algo_trade import settings
 
@@ -174,8 +173,7 @@ class DealProcessorService:
     def _should_process_deal(self, deal: Deal) -> bool:
         """Check if deal should be processed based on business rules."""
         try:
-            # Add any business logic here
-            # For example: check market hours, account balance, etc.
+            #todo: For example: check market hours, account balance
             
             # For now, process all valid deals
             return True

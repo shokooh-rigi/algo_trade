@@ -1,5 +1,4 @@
 import logging
-from decimal import Decimal
 from typing import Dict, Any, List, Optional
 
 from algo.models import Order, Deal, StoreClient, Market, AdminSystemConfig

@@ -45,7 +45,7 @@ class CancelOrderService:
                 provider_config=provider_config,
             )
         except ValueError as e:
-            logger.error(f"{settings.ORDER_LOG_PREFIX} Provider creation failed: {e}")
+            logger.error(f"{settings.CANCEL_ORDER_LOG_PREFIX} Provider creation failed: {e}")
             raise ValueError("Failed to create provider.") from e
 
     def cancel_order(self):
@@ -60,7 +60,7 @@ class CancelOrderService:
             ValueError: If the cancellation fails or the response is invalid.
         """
         try:
-            logger.info(f"{settings.ORDER_LOG_PREFIX} Attempting to cancel order {self.client_order_id}.")
+            logger.info(f"{settings.CANCEL_ORDER_LOG_PREFIX} Attempting to cancel order {self.client_order_id}.")
             response = self.provider.cancel_order(
                 api_key=self.store_client.api_key,
                 order_id=self.client_order_id,
@@ -74,12 +74,12 @@ class CancelOrderService:
                         client_order_id =self.client_order_id
                     ).update(**dict(response_schema.result))
                     logger.info(
-                        f"{settings.ORDER_LOG_PREFIX}"
+                        f"{settings.CANCEL_ORDER_LOG_PREFIX}"
                         f" Order:{self.client_order_id} by status {response_schema.result.status} and recorded successfully.")
                     return True
             else:
                 logger.warning(
-                    f"{settings.ORDER_LOG_PREFIX} Cancellation failed for order {self.client_order_id}: "
+                    f"{settings.CANCEL_ORDER_LOG_PREFIX} Cancellation failed for order {self.client_order_id}: "
                     f"{response_schema.message},"
                     f" result: {response_schema.result}"
                 )
@@ -87,14 +87,14 @@ class CancelOrderService:
 
         except ValueError as e:
             logger.error(
-                f"{settings.ORDER_LOG_PREFIX} Cancellation failed for"
+                f"{settings.CANCEL_ORDER_LOG_PREFIX} Cancellation failed for"
                 f" order {self.client_order_id}: {e}"
             )
             raise ValueError(f"Failed to cancel order {self.client_order_id}.") from e
 
     def cancel_active_orders(self):
         try:
-            logger.info(f"{settings.ORDER_LOG_PREFIX} Fetching active orders for store client: {self.store_client}.")
+            logger.info(f"{settings.CANCEL_ORDER_LOG_PREFIX} Fetching active orders for store client: {self.store_client}.")
 
             # Fetch active orders from the provider
             active_orders = self.provider.get_active_orders(api_key=self.store_client.api_key)
@@ -102,14 +102,14 @@ class CancelOrderService:
             # Validate the API response structure
             if not active_orders.get("success", False):
                 logger.error(
-                    f"{settings.ORDER_LOG_PREFIX} Failed to fetch active orders. Provider response: {active_orders}"
+                    f"{settings.CANCEL_ORDER_LOG_PREFIX} Failed to fetch active orders. Provider response: {active_orders}"
                 )
                 return False
 
             results = active_orders.get("result")
             if not results or "orders" not in results:
                 logger.error(
-                    f"{settings.ORDER_LOG_PREFIX} Invalid response structure. Missing 'result' or 'orders': {active_orders}"
+                    f"{settings.CANCEL_ORDER_LOG_PREFIX} Invalid response structure. Missing 'result' or 'orders': {active_orders}"
                 )
                 return False
 
@@ -117,7 +117,7 @@ class CancelOrderService:
             list_active_orders = results["orders"]
             if not list_active_orders:
                 logger.info(
-                    f"{settings.ORDER_LOG_PREFIX} No active orders found for store client: {self.store_client}.")
+                    f"{settings.CANCEL_ORDER_LOG_PREFIX} No active orders found for store client: {self.store_client}.")
                 return True
 
             # Iterate through active orders and cancel them
@@ -125,11 +125,11 @@ class CancelOrderService:
                 client_order_id = active_order.get("clientOrderId")
                 if not client_order_id:
                     logger.warning(
-                        f"{settings.ORDER_LOG_PREFIX} Skipping order without a valid 'clientOrderId'. Order data: {active_order}"
+                        f"{settings.CANCEL_ORDER_LOG_PREFIX} Skipping order without a valid 'clientOrderId'. Order data: {active_order}"
                     )
                     continue
 
-                logger.info(f"{settings.ORDER_LOG_PREFIX} Attempting to cancel order: {client_order_id}.")
+                logger.info(f"{settings.CANCEL_ORDER_LOG_PREFIX} Attempting to cancel order: {client_order_id}.")
 
                 try:
                     # Cancel the order via the provider
@@ -145,25 +145,25 @@ class CancelOrderService:
                         # Update the database with the cancellation details
                         Order.objects.filter(client_order_id=client_order_id).update(**dict(response_schema.result))
                         logger.info(
-                            f"{settings.ORDER_LOG_PREFIX} Order {client_order_id} canceled successfully and updated in the database."
+                            f"{settings.CANCEL_ORDER_LOG_PREFIX} Order {client_order_id} canceled successfully and updated in the database."
                         )
                     else:
                         logger.error(
-                            f"{settings.ORDER_LOG_PREFIX} Failed to cancel order {client_order_id}. "
+                            f"{settings.CANCEL_ORDER_LOG_PREFIX} Failed to cancel order {client_order_id}. "
                             f"Response message: {response_schema.message}, result: {response_schema.result}"
                         )
 
                 except Exception as e:
                     logger.error(
-                        f"{settings.ORDER_LOG_PREFIX} Error occurred while canceling order {client_order_id}: {e}"
+                        f"{settings.CANCEL_ORDER_LOG_PREFIX} Error occurred while canceling order {client_order_id}: {e}"
                     )
 
-            logger.info(f"{settings.ORDER_LOG_PREFIX} Completed processing all active orders for store client.")
+            logger.info(f"{settings.CANCEL_ORDER_LOG_PREFIX} Completed processing all active orders for store client.")
             return True
 
         except Exception as e:
             logger.exception(
-                f"{settings.ORDER_LOG_PREFIX} An unexpected error occurred while canceling active orders for "
+                f"{settings.CANCEL_ORDER_LOG_PREFIX} An unexpected error occurred while canceling active orders for "
                 f"store client {self.store_client}: {e}"
             )
             return False
