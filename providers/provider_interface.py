@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from providers.schemas.wallex_schemas import OrderResponseSchema
 
@@ -51,6 +51,26 @@ class IProvider(ABC):
 
         Returns:
             Dict[str, Any]: A dictionary containing asset data.
+        """
+        pass
+
+    @abstractmethod
+    def fetch_ohlcv_data(
+            self,
+            symbol: str,
+            resolution: str,  # e.g., '60' for 1 hour, 'D' for 1 day, or integer seconds
+            from_timestamp: int,  # Unix timestamp (seconds)
+            to_timestamp: int  # Unix timestamp (seconds)
+    ) -> Optional[List[Dict[str, Any]]]:
+        """
+        Fetches historical OHLCV (candlestick) data for a given symbol and timeframe from Wallex.
+        NOTE: A direct public OHLCV endpoint for Wallex.ir is NOT clearly documented.
+        This implementation is conceptual and uses a common API pattern.
+        You MUST verify the actual endpoint, parameters, and response structure with Wallex's
+        API documentation if one becomes available, or use a third-party data provider.
+
+        Conceptual Endpoint: GET /v1/market/ohlcv?symbol={symbol}&resolution={resolution}&from={from_ts}&to={to_ts}
+        Returns: List of dictionaries, each representing a candlestick (time, open, high, low, close, volume).
         """
         pass
 
