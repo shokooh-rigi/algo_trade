@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List
 
-from providers.schemas.wallex_schemas import OrderResponseSchema #todo: be careful when use nobitex
+from providers.schemas.wallex_schemas import OrderResponseSchema
 
 
 class IProvider(ABC):

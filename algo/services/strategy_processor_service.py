@@ -137,7 +137,7 @@ class StrategyProcessorService:
                 "deal_generated": False
             }
             #todo: what is and where is :current_deal??? correct it if not exist
-            # Check if deal was generated
+            # Check if deal was generated, strategy_instance.current_deal do not have current_deal reference is not valid seems
             if strategy_instance.current_deal and not strategy_instance.current_deal.is_processed:
                 result["deal_generated"] = True
                 result["deal_id"] = strategy_instance.current_deal.id
@@ -173,7 +173,6 @@ class StrategyProcessorService:
 
             # Fetch latest OHLCV data
             current_time_ts = int(time.time())
-            #todo: what is and where is :fetch_ohlcv_data??? correct it if not exist
             raw_ohlcv = provider_instance.fetch_ohlcv_data(
                 symbol=strategy_config.market.symbol,
                 resolution=strategy_config.resolution,

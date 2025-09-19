@@ -2,7 +2,7 @@ import logging
 from decimal import Decimal
 from typing import Dict, Any, Optional
 
-from django.contrib.sites import requests
+import requests
 from django.db import transaction
 
 from algo.models import Order, Deal, StoreClient
@@ -177,8 +177,6 @@ class OrderHandler:
             logger.error(f"Pydantic validation error for cancel order API response for order {order.client_order_id}: {e.errors()}", exc_info=True)
             return False
         except requests.RequestException as e:
-            #todo: what is and where is :RequestException??? correct it if not exist import it
-
             logger.error(f"Network or API error canceling order {order.client_order_id}: {e}", exc_info=True)
             return False
         except Exception as e:

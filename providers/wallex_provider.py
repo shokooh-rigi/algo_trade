@@ -46,6 +46,7 @@ class WallexProvider(IProvider):
             provider_config (Dict[str, Any]): Configuration details for the provider.
         """
         self.config = provider_config
+        self.provider_name = "Wallex"
 
     def _get_auth_headers(self, api_key: str) -> Dict[str, str]:
         """
@@ -324,32 +325,42 @@ class WallexProvider(IProvider):
             wallex_response = WallexOrderInfoResponse.model_validate(response_json)
 
             if wallex_response.success and wallex_response.result:
-                #todo:  Return the result as a OrderResponseSchema
-                return {
-                    "success": True,
-                    "message": wallex_response.message,
-                    "result": wallex_response.result.model_dump()
-                }
+                return OrderResponseSchema(
+                    success=True,
+                    message=wallex_response.message,
+                    result=wallex_response.result
+                )
             else:
                 logger.warning(
                     f"Error fetching order info for client_order_id {client_order_id}: {wallex_response.message}")
-                #todo:  Return the result as a OrderResponseSchema
-
-                return {"success": False, "message": wallex_response.message, "result": None}
+                return OrderResponseSchema(
+                    success=False,
+                    message=wallex_response.message,
+                    result=None
+                )
         except ValidationError as e:
             logger.error(f"Pydantic validation error fetching order info: {e.errors()}", exc_info=True)
-            # todo:  Return the result as a OrderResponseSchema
-            return {"success": False, "message": f"Validation error: {e}", "result": None}
+            return OrderResponseSchema(
+                success=False,
+                message=f"Validation error: {e}",
+                result=None
+            )
         except requests.RequestException as e:
             logger.error(f"Network or API error fetching order info for client_order_id {client_order_id}: {e}",
                          exc_info=True)
-            # todo:  Return the result as a OrderResponseSchema
-            return {"success": False, "message": f"Network or API error: {e}", "result": None}
+            return OrderResponseSchema(
+                success=False,
+                message=f"Network or API error: {e}",
+                result=None
+            )
         except Exception as e:
             logger.error(f"Unexpected error fetching order info for client_order_id {client_order_id}: {e}",
                          exc_info=True)
-            # todo:  Return the result as a OrderResponseSchema
-            return {"success": False, "message": f"Unexpected error: {e}", "result": None}
+            return OrderResponseSchema(
+                success=False,
+                message=f"Unexpected error: {e}",
+                result=None
+            )
 
     def cancel_order(
             self,

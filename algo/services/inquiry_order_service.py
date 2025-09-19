@@ -7,7 +7,6 @@ from algo.enums import OrderStatus, OrderSide
 from algo.models import Order
 from algo.strategies.enums import ProcessedSideEnum
 from algo_trade import settings
-from algo_trade.utils import validate_response_schema
 from providers.provider_factory import ProviderFactory
 
 logger = logging.getLogger(__name__)
@@ -48,12 +47,11 @@ class InquiryOrderService:
                 provider_name=self.provider_name,
                 provider_config=self.provider_config,
             )
-            response = self.provider.order_info(
+            response_schema = self.provider.order_info(
                 api_key=order.store_client.api_key,
                 client_order_id=order.client_order_id,
             )
-            logger.info(f'{settings.INQUIRY_ORDER_LOG_PREFIX} Inquiry order response {response} from provider{self.provider_name}')
-            response_schema = validate_response_schema(response)#todo: correct the type schema and this may use easier way
+            logger.info(f'{settings.INQUIRY_ORDER_LOG_PREFIX} Inquiry order response {response_schema} from provider{self.provider_name}')
             if response_schema.success:
                 with transaction.atomic():
                     if response_schema.result.status == OrderStatus.PARTIALLY_FILLED:
