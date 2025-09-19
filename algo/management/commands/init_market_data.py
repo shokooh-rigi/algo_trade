@@ -1,0 +1,24 @@
+import logging
+from django.core.management.base import BaseCommand
+
+from algo.services.store_markets_service import StoreMarketsFetcherService
+from providers.providers_enum import ProviderEnum
+
+logger = logging.getLogger(__name__)
+
+
+class Command(BaseCommand):
+    help = 'Fetches and stores initial market data for all providers using Celery tasks.'
+
+    def handle(self, *args, **options):
+        self.stdout.write("Dispatching Celery tasks to fetch market data...")
+
+        for provider in ProviderEnum:
+            self.stdout.write(f"  -> Dispatching task for provider: {provider.name}")
+            service = StoreMarketsFetcherService(
+                provider_name=provider.value,
+                provider_config={},
+            )
+            service.store_data()
+
+        self.stdout.write(self.style.SUCCESS('Successfully dispatched all market data tasks.'))

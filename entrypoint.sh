@@ -14,6 +14,8 @@ if [ "$1" = "gunicorn" ]; then
   # Run migrations and collect static files only on the web server
   python manage.py makemigrations
   python manage.py migrate --noinput
+   python manage.py init_market_data
+  python manage.py init_asset_data
   python manage.py collectstatic --noinput
 fi
 
