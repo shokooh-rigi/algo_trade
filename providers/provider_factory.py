@@ -32,5 +32,3 @@ class ProviderFactory:
         else:
             raise ValueError(f"Unknown provider: {provider_name}")
 
-        logger.error(f"Unknown provider: {provider_name}")
-        raise ValueError(f"Unknown provider: {provider_name}")
