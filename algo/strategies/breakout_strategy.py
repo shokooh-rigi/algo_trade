@@ -66,7 +66,7 @@ class BreakoutStrategy(StrategyInterface):
             logger.info(f"Strategy {self.strategy_config_id} initialized for {self.market_symbol} on {self.provider_name}")
             
             # Initialize provider
-            self.provider_instance = ProviderFactory.create_provider(self.provider_name, {})
+            self.provider_instance = ProviderFactory.create_provider(self.provider_name.value, {})
             
             # Fetch historical data for indicators
             if self.strategy_config.need_historical_data:
