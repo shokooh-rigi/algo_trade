@@ -12,8 +12,7 @@ class StrategyConfigAdminForm(forms.ModelForm):
     for the JSONField and other fields.
     """
     strategy_configs = forms.JSONField(
-        widget=forms.Textarea(attrs={
-            'placeholder': '''{
+        initial={
             "fast_ema_period": 12,
             "slow_ema_period": 26,
             "signal_ema_period": 9,
@@ -27,7 +26,8 @@ class StrategyConfigAdminForm(forms.ModelForm):
             "volume_percentile_window": 50,
             "volume_percentile_threshold": 70,
             "trade_cooldown_minutes": 45
-            }''',
+        },
+        widget=forms.Textarea(attrs={
             'rows': 8,
         }),
         help_text='''JSON configuration for the selected strategy. Each parameter explained:
