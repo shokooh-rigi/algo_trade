@@ -150,7 +150,7 @@ WALLEX_ACTIVE_ORDERS_PATH : str = os.getenv('WALLEX_ACTIVE_ORDERS_PATH', 'v1/acc
 WALLEX_ORDER_INFO_PATH : str = os.getenv('WALLEX_ORDER_INFO_PATH', 'v1/account/orders/')
 WALLEX_CANCEL_ORDER_PATH : str = os.getenv('WALLEX_CANCEL_ORDER_PATH', 'v1/account/orders')
 WALLEX_GET_BALANCES_PATH : str = os.getenv('WALLEX_GET_BALANCES_PATH', 'v1/account/balances/')
-WALLEX_OHLCV_HISTORY_PATH : str = os.getenv('WALLEX_OHLCV_HISTORY_PATH',"/v1/market/ohlcv")
+WALLEX_OHLCV_HISTORY_PATH : str = os.getenv('WALLEX_OHLCV_HISTORY_PATH',"v1/market/klines")
 
 #url nobitex
 NOBITEX_BASE_URL : str = os.getenv('NOBITEX_BASE_URL', 'https://apiv2.nobitex.ir/')

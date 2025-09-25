@@ -129,7 +129,7 @@ class StrategyMacdEmaCross(StrategyInterface):
                 logger.info(f"Initial indicators calculated for {self.market_symbol}.")
             else:
                 logger.warning(
-                    f"Could not fetch initial historical data for {self.market_symbol}. Strategy might not function correctly.")
+                    f"Could not fetch initial historical data for {self.market_symbol}. Strategy will run without historical data.")
 
             # Higher timeframe history for trend confirmation
             htf_days = max(14, self.initial_history_period_days)
@@ -140,6 +140,8 @@ class StrategyMacdEmaCross(StrategyInterface):
                 self.htf_history['time'] = pd.to_datetime(self.htf_history['time'], unit='s')
                 self.htf_history = self.htf_history.set_index('time')
                 self._calculate_htf_indicators()
+        else:
+            logger.info(f"Historical data not required for {self.market_symbol}. Strategy will start without initial indicators.")
 
         # Check for any active deals for this strategy/market
         self.current_deal = Deal.objects.filter(
@@ -173,6 +175,12 @@ class StrategyMacdEmaCross(StrategyInterface):
         if not self.provider_instance:
             logger.error(f"Provider instance not initialized for {self.market_symbol}. Skipping execution.")
             return "Provider not initialized"
+
+        # Check if we have historical data capability
+        if not self.strategy_config.need_historical_data:
+            logger.info(f"Strategy {self.strategy_config_id} running without historical data. Using real-time data only.")
+            # For now, return a message indicating the strategy is running but without full functionality
+            return "Strategy running without historical data - limited functionality"
 
         # 1. Update historical data with latest candle if needed
         if self.strategy_config.need_historical_data:
