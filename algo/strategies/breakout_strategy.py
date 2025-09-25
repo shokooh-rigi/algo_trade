@@ -45,7 +45,7 @@ class BreakoutStrategy(StrategyInterface):
         self.strategy_config: Optional[StrategyConfig] = None  # Store the StrategyConfig instance
         self.strategy_params = None  # Store validated strategy_configs from Pydantic schema
         self.last_trade_time = None  # For cooldown management
-        self.state = StrategyState.INITIALIZING
+        self.state = StrategyState.STARTED
 
     def initialize(self) -> bool:
         """
@@ -76,12 +76,12 @@ class BreakoutStrategy(StrategyInterface):
             else:
                 logger.info(f"Strategy {self.strategy_config_id} doesn't require historical data. Using simple signals.")
             
-            self.state = StrategyState.ACTIVE
+            self.state = StrategyState.RUNNING
             return True
             
         except Exception as e:
             logger.error(f"Failed to initialize strategy {self.strategy_config_id}: {e}", exc_info=True)
-            self.state = StrategyState.ERROR
+            self.state = StrategyState.STOPPED
             return False
 
     def _fetch_historical_data(self) -> bool:
@@ -184,7 +184,7 @@ class BreakoutStrategy(StrategyInterface):
             Optional[Dict[str, Any]]: Deal information if a trade is executed, None otherwise.
         """
         try:
-            if self.state != StrategyState.ACTIVE:
+            if self.state != StrategyState.RUNNING:
                 logger.warning(f"Strategy {self.strategy_config_id} is not active. Current state: {self.state}")
                 return None
             
@@ -457,6 +457,40 @@ class BreakoutStrategy(StrategyInterface):
     def get_config(self) -> Optional[StrategyConfig]:
         """Returns the strategy configuration."""
         return self.strategy_config
+
+    def get_results(self) -> Dict[str, Any]:
+        """
+        Return the results of the strategy execution.
+        Returns:
+            Dict[str, Any]: Strategy execution results including current state and performance metrics.
+        """
+        try:
+            results = {
+                'strategy_id': self.strategy_config_id,
+                'market': self.market_symbol,
+                'provider': self.provider_name.value if self.provider_name else None,
+                'state': self.state.value if self.state else None,
+                'current_deal': {
+                    'side': self.current_deal.side if self.current_deal else None,
+                    'price': float(self.current_deal.price) if self.current_deal else None,
+                    'quantity': float(self.current_deal.quantity) if self.current_deal else None,
+                    'created_at': self.current_deal.created_at.isoformat() if self.current_deal else None,
+                } if self.current_deal else None,
+                'price_history_length': len(self.price_history) if not self.price_history.empty else 0,
+                'last_trade_time': self.last_trade_time.isoformat() if self.last_trade_time else None,
+                'strategy_params': self.strategy_params.dict() if self.strategy_params else None,
+            }
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Error getting results for strategy {self.strategy_config_id}: {e}", exc_info=True)
+            return {
+                'strategy_id': self.strategy_config_id,
+                'market': self.market_symbol,
+                'error': str(e),
+                'state': 'ERROR'
+            }
 
     def update_price_history(self, new_candle: Dict[str, Any]):
         """
