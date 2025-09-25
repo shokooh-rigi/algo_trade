@@ -173,11 +173,11 @@ class StrategyProcessorService:
                 nobitex_provider = NobitexProvider({})
                 
                 # Fetch more historical data to ensure we have recent data
-                # For daily resolution, fetch last 7 days to ensure we have recent data
+                # For daily resolution, fetch last 250 days to ensure we have enough data for indicators
                 if strategy_config.resolution == "D":
-                    time_range = 7 * 24 * 60 * 60  # 7 days
+                    time_range = 250 * 24 * 60 * 60  # 250 days
                 else:
-                    time_range = 24 * 60 * 60  # 1 day for other resolutions
+                    time_range = 30 * 24 * 60 * 60  # 30 days for other resolutions
                 
                 raw_ohlcv = nobitex_provider.fetch_ohlcv_data(
                     symbol=strategy_config.market.symbol,

@@ -114,10 +114,12 @@ class StrategyMacdEmaCross(StrategyInterface):
 
         # Fetch historical data if needed
         if self.strategy_config.need_historical_data:
+            # Ensure we have enough data for all indicators (minimum 250 days to get 200+ trading days)
+            min_days = max(250, self.initial_history_period_days)
             logger.info(
-                f"Fetching {self.initial_history_period_days} days of history for {self.market_symbol} with resolution {self.resolution}.")
+                f"Fetching {min_days} days of history for {self.market_symbol} with resolution {self.resolution}.")
             end_timestamp = int(time.time())
-            start_timestamp = int((datetime.now() - timedelta(days=self.initial_history_period_days)).timestamp())
+            start_timestamp = int((datetime.now() - timedelta(days=min_days)).timestamp())
 
             raw_ohlcv = self._fetch_historical_data(start_timestamp, end_timestamp, resolution=self.resolution)
 
@@ -125,6 +127,13 @@ class StrategyMacdEmaCross(StrategyInterface):
                 self.price_history = pd.DataFrame(raw_ohlcv)
                 self.price_history['time'] = pd.to_datetime(self.price_history['time'], unit='s')
                 self.price_history = self.price_history.set_index('time')
+                
+                # Ensure we have enough data for all indicators before calculating
+                max_period = max(self.long_ema_period, self.slow_ema_period + self.signal_ema_period)
+                keep_data_points = max(max_period + 50, 250)  # Keep at least 250 points or max_period + 50
+                if len(self.price_history) > keep_data_points:
+                    self.price_history = self.price_history.iloc[-keep_data_points:]
+                
                 self._calculate_all_indicators()
                 logger.info(f"Initial indicators calculated for {self.market_symbol}.")
             else:
@@ -132,7 +141,7 @@ class StrategyMacdEmaCross(StrategyInterface):
                     f"Could not fetch initial historical data for {self.market_symbol}. Strategy will run without historical data.")
 
             # Higher timeframe history for trend confirmation
-            htf_days = max(14, self.initial_history_period_days)
+            htf_days = max(14, min_days)
             htf_start_ts = int((datetime.now() - timedelta(days=htf_days)).timestamp())
             htf_raw = self._fetch_historical_data(htf_start_ts, end_timestamp, resolution=self.htf_resolution)
             if htf_raw:
@@ -194,15 +203,22 @@ class StrategyMacdEmaCross(StrategyInterface):
             else:
                 self.price_history = pd.concat([self.price_history, new_candle_df])
 
+            # Ensure we have enough data for all indicators before calculating
             max_period = max(self.long_ema_period, self.slow_ema_period + self.signal_ema_period)
-            self.price_history = self.price_history.iloc[-(max_period + 5):]
-
-            self._calculate_all_indicators()
-
+            keep_data_points = max(max_period + 50, 250)  # Keep at least 250 points or max_period + 50
+            
+            # Trim data if we have more than needed, but ensure we keep enough
+            if len(self.price_history) > keep_data_points:
+                self.price_history = self.price_history.iloc[-keep_data_points:]
+            
+            # Check if we have sufficient data before calculating indicators
             if len(self.price_history) < max_period:
                 logger.warning(
-                    f"Not enough historical data for {self.market_symbol} to calculate all indicators. Skipping signal generation.")
+                    f"Not enough historical data for {self.market_symbol} to calculate all indicators. "
+                    f"Need {max_period} points, have {len(self.price_history)}. Skipping signal generation.")
                 return "Not enough historical data"
+
+            self._calculate_all_indicators()
 
             latest_close_price = Decimal(str(self.price_history['close'].iloc[-1]))
             latest_macd = self.price_history['macd'].iloc[-1]
