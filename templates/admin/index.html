@@ -1,0 +1,273 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}Trading Platform Dashboard{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+.dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.stat-card {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.stat-card h3 {
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-number {
+    font-size: 32px;
+    font-weight: bold;
+    margin: 10px 0;
+}
+
+.stat-number.success { color: #28a745; }
+.stat-number.warning { color: #ffc107; }
+.stat-number.danger { color: #dc3545; }
+.stat-number.info { color: #007cba; }
+
+.system-status {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.status-indicator {
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.status-healthy {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-emergency {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.recent-activity {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.activity-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-details {
+    flex: 1;
+}
+
+.activity-time {
+    color: #666;
+    font-size: 12px;
+}
+
+.quick-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 20px 0;
+}
+
+.quick-action-btn {
+    background: #007cba;
+    color: white;
+    padding: 10px 20px;
+    text-decoration: none;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.quick-action-btn:hover {
+    background: #005a87;
+}
+
+.quick-action-btn.danger {
+    background: #dc3545;
+}
+
+.quick-action-btn.danger:hover {
+    background: #c82333;
+}
+
+.quick-action-btn.success {
+    background: #28a745;
+}
+
+.quick-action-btn.success:hover {
+    background: #218838;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <h1>🚀 Algorithmic Trading Platform Dashboard</h1>
+    
+    <!-- System Status -->
+    <div class="system-status">
+        <h2>System Status</h2>
+        <div class="status-indicator {% if system_health == 'healthy' %}status-healthy{% else %}status-emergency{% endif %}">
+            {% if system_health == 'healthy' %}
+                🟢 System Running Normally
+            {% else %}
+                🔴 Emergency Stop Active
+            {% endif %}
+        </div>
+        {% if kill_switch_active %}
+            <p style="color: #dc3545; font-weight: bold; margin-top: 10px;">
+                ⚠️ All trading activities are currently halted due to emergency stop.
+            </p>
+        {% endif %}
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <a href="{% url 'admin:algo_strategyconfig_changelist' %}" class="quick-action-btn">
+            ⚙️ Manage Strategies
+        </a>
+        <a href="{% url 'admin:algo_deal_changelist' %}" class="quick-action-btn">
+            📊 View Deals
+        </a>
+        <a href="{% url 'admin:algo_order_changelist' %}" class="quick-action-btn">
+            📋 View Orders
+        </a>
+        <a href="{% url 'admin:kill_switch' %}" class="quick-action-btn {% if kill_switch_active %}success{% else %}danger{% endif %}">
+            {% if kill_switch_active %}✅ Resume Trading{% else %}🚨 Emergency Stop{% endif %}
+        </a>
+    </div>
+    
+    <!-- Statistics Cards -->
+    <div class="dashboard-stats">
+        <div class="stat-card">
+            <h3>Total Deals</h3>
+            <div class="stat-number info">{{ total_deals }}</div>
+            <p>All time trading opportunities</p>
+        </div>
+        
+        <div class="stat-card">
+            <h3>Active Deals</h3>
+            <div class="stat-number {% if active_deals > 0 %}warning{% else %}success{% endif %}">{{ active_deals }}</div>
+            <p>Currently open positions</p>
+        </div>
+        
+        <div class="stat-card">
+            <h3>Total Orders</h3>
+            <div class="stat-number info">{{ total_orders }}</div>
+            <p>Orders placed on exchanges</p>
+        </div>
+        
+        <div class="stat-card">
+            <h3>Active Strategies</h3>
+            <div class="stat-number {% if active_strategies > 0 %}success{% else %}warning{% endif %}">{{ active_strategies }}</div>
+            <p>Strategies currently running</p>
+        </div>
+    </div>
+    
+    <!-- Recent Activity -->
+    <div class="recent-activity">
+        <h2>Recent Activity (Last 24 Hours)</h2>
+        {% if recent_deals %}
+            {% for deal in recent_deals %}
+                <div class="activity-item">
+                    <div class="activity-details">
+                        <strong>{{ deal.strategy_name }}</strong> - {{ deal.market_symbol }}
+                        <br>
+                        <span style="color: {% if deal.side == 'BUY' %}#28a745{% else %}#dc3545{% endif %};">
+                            {{ deal.side }} {{ deal.quantity }} @ {{ deal.price }}
+                        </span>
+                    </div>
+                    <div class="activity-time">
+                        {{ deal.created_at|timesince }} ago
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p style="color: #666; text-align: center; padding: 20px;">
+                No recent trading activity
+            </p>
+        {% endif %}
+    </div>
+    
+    <!-- System Information -->
+    <div class="system-status">
+        <h2>System Information</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <div>
+                <strong>Platform Version:</strong><br>
+                <span style="color: #666;">v1.0.0</span>
+            </div>
+            <div>
+                <strong>Last Updated:</strong><br>
+                <span style="color: #666;">{{ "now"|date:"Y-m-d H:i:s" }}</span>
+            </div>
+            <div>
+                <strong>Database:</strong><br>
+                <span style="color: #666;">PostgreSQL</span>
+            </div>
+            <div>
+                <strong>Task Queue:</strong><br>
+                <span style="color: #666;">Celery + Redis</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-refresh dashboard every 60 seconds
+setTimeout(function() {
+    location.reload();
+}, 60000);
+
+// Add click handlers for quick actions
+document.addEventListener('DOMContentLoaded', function() {
+    // Add confirmation for emergency stop
+    const emergencyBtn = document.querySelector('.quick-action-btn.danger');
+    if (emergencyBtn) {
+        emergencyBtn.addEventListener('click', function(e) {
+            if (!confirm('Are you sure you want to activate the emergency stop? This will halt ALL trading activities.')) {
+                e.preventDefault();
+            }
+            if (!confirm('This action will immediately stop all strategies and prevent new trades. Continue?')) {
+                e.preventDefault();
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
