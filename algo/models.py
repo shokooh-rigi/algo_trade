@@ -674,6 +674,15 @@ class StrategyConfig(SoftDeleteModel, BaseModel):
         super().restore()
 
 
+    def get_config(self):
+        """
+        Returns a validated Pydantic schema instance for the strategy configuration.
+        """
+        from algo.strategies.schemas import get_strategy_schema
+        
+        schema_class = get_strategy_schema(self.strategy)
+        return schema_class(**self.strategy_configs)
+
     @classmethod
     def update_state(cls, id: int , state: StrategyState):
         """
