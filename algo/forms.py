@@ -13,51 +13,57 @@ class StrategyConfigAdminForm(forms.ModelForm):
     """
     strategy_configs = forms.JSONField(
         initial={
-            "fast_ema_period": 12,
-            "slow_ema_period": 26,
-            "signal_ema_period": 9,
-            "short_ema_period": 50,
-            "long_ema_period": 200,
-            "order_book_depth_threshold": 0.8,
-            "htf_resolution": "4h",
-            "htf_ema_length": 50,
-            "min_adx": 18.0,
-            "min_atr_percent": 0.15,
-            "volume_percentile_window": 50,
-            "volume_percentile_threshold": 70,
-            "trade_cooldown_minutes": 45
+            "ema_fast_period": 5,
+            "ema_slow_period": 13,
+            "rsi_period": 14,
+            "rsi_overbought": 75.0,
+            "rsi_oversold": 25.0,
+            "volume_period": 5,
+            "volume_threshold": 1.2,
+            "breakout_period": 20,
+            "momentum_period": 3,
+            "stop_loss_percent": 0.3,
+            "take_profit_percent": 0.6,
+            "max_position_size_percent": 50.0,
+            "trade_cooldown_minutes": 30,
+            "max_daily_trades": 10,
+            "order_book_depth_threshold": 1.5
         },
         widget=forms.Textarea(attrs={
             'rows': 15,
             'cols': 80,
-            'style': 'width: 100%; max-width: 100%; height: 400px; font-family: monospace; font-size: 12px;',
+            'style': 'width: 100%; max-width: 100%; height: 300px; font-family: monospace; font-size: 12px;',
         }),
-        help_text='''JSON configuration for the selected strategy. Each parameter explained:
+        help_text='''JSON configuration for the Breakout Strategy. Each parameter explained:
         
-MACD Parameters:
-- fast_ema_period: Fast EMA period for MACD calculation (default: 12)
-- slow_ema_period: Slow EMA period for MACD calculation (default: 26) 
-- signal_ema_period: Signal line EMA for MACD (default: 9)
+EMA Parameters:
+- ema_fast_period: Fast EMA period for quick signals (default: 5)
+- ema_slow_period: Slow EMA period for trend direction (default: 13)
 
-EMA Cross Parameters:
-- short_ema_period: Short-term EMA for trend confirmation (default: 50)
-- long_ema_period: Long-term EMA for trend confirmation (default: 200)
-
-Risk Management:
-- order_book_depth_threshold: Buy/sell ratio threshold 0.0-1.0 (default: 0.8)
-- min_adx: Minimum ADX for trend strength, avoid choppy markets (default: 18.0)
-- min_atr_percent: Minimum volatility threshold as % of price (default: 0.15)
+RSI Parameters:
+- rsi_period: RSI calculation period (default: 14)
+- rsi_overbought: RSI overbought level (default: 75.0)
+- rsi_oversold: RSI oversold level (default: 25.0)
 
 Volume Analysis:
-- volume_percentile_window: Lookback period for volume analysis (default: 50)
-- volume_percentile_threshold: Volume must be above this percentile 0-100 (default: 70)
+- volume_period: Volume SMA period (default: 5)
+- volume_threshold: Volume ratio threshold, 120% of average (default: 1.2)
 
-Higher Timeframe Confirmation:
-- htf_resolution: Higher timeframe resolution (default: "4h")
-- htf_ema_length: EMA length on higher timeframe (default: 50)
+Breakout Detection:
+- breakout_period: High/Low breakout detection period (default: 20)
+- momentum_period: Momentum calculation period (default: 3)
+
+Risk Management:
+- stop_loss_percent: Stop loss percentage (default: 0.3)
+- take_profit_percent: Take profit percentage (default: 0.6)
+- max_position_size_percent: Maximum position size percentage (default: 50.0)
 
 Trade Management:
-- trade_cooldown_minutes: Cooldown between opposite trades in minutes (default: 45)''',
+- trade_cooldown_minutes: Cooldown between trades in minutes (default: 30)
+- max_daily_trades: Maximum trades per day (default: 10)
+
+Order Book Analysis:
+- order_book_depth_threshold: Order book imbalance threshold (default: 1.5)''',
     )
 
     def clean_strategy_configs(self):

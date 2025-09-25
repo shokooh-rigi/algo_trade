@@ -2,7 +2,7 @@ import logging
 
 from algo.models import StrategyConfig
 from algo.strategies.enums import StrategyEnum
-from algo.strategies.sterategy_macd_ema_cross import StrategyMacdEmaCross
+from algo.strategies.breakout_strategy import BreakoutStrategy
 from algo.strategies.strategy_interface import StrategyInterface
 from providers.providers_enum import ProviderEnum
 
@@ -22,7 +22,7 @@ class StrategyFactory:
         except StrategyConfig.DoesNotExist:
             raise ValueError(f"StrategyConfig with ID {strategy_config_id} not found.")
 
-        if strategy_name == StrategyEnum.StrategyMacdEmaCross.name:
-            return StrategyMacdEmaCross(strategy_config_id, provider, market)
+        if strategy_name == StrategyEnum.BreakoutStrategy.name or strategy_name == StrategyEnum.StrategyMacdEmaCross.name:
+            return BreakoutStrategy(strategy_config_id, provider, market)
         logger.error(f"Unknown strategy: {strategy_name}")
         raise ValueError(f"Unknown strategy: {strategy_name}")

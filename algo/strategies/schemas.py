@@ -5,54 +5,58 @@ from typing import Dict, Any, Optional
 # Import StrategyEnum from algo.strategies.enums
 from algo.strategies.enums import StrategyEnum
 
-class StrategyMacdEmaCrossSchema(PydanticBaseModel):
-    fast_ema_period: int = Field(12, description="Fast EMA period for MACD", gt=0)
-    slow_ema_period: int = Field(26, description="Slow EMA period for MACD", gt=0)
-    signal_ema_period: int = Field(9, description="Signal EMA period for MACD", gt=0)
-    short_ema_period: int = Field(50, description="Short EMA period for EMA cross", gt=0)
-    long_ema_period: int = Field(200, description="Long EMA period for EMA cross", gt=0)
-    order_book_depth_threshold: float = Field(0.8, description="Order book buy/sell ratio threshold", gt=0, lt=1)
+class BreakoutStrategySchema(PydanticBaseModel):
+    # Breakout Strategy Parameters
+    ema_fast_period: int = Field(5, description="Fast EMA period for quick signals", gt=0)
+    ema_slow_period: int = Field(13, description="Slow EMA period for trend", gt=0)
+    rsi_period: int = Field(14, description="RSI period for momentum confirmation", gt=0)
+    rsi_overbought: float = Field(75.0, description="RSI overbought level", gt=50, le=100)
+    rsi_oversold: float = Field(25.0, description="RSI oversold level", ge=0, lt=50)
+    
+    # Volume Analysis
+    volume_period: int = Field(5, description="Volume SMA period", gt=0)
+    volume_threshold: float = Field(1.2, description="Volume ratio threshold (120% of average)", gt=0)
+    
+    # Breakout Parameters
+    breakout_period: int = Field(20, description="High/Low breakout detection period", gt=0)
+    momentum_period: int = Field(3, description="Momentum calculation period", gt=0)
+    
+    # Risk Management
+    stop_loss_percent: float = Field(0.3, description="Stop loss percentage", gt=0, le=5)
+    take_profit_percent: float = Field(0.6, description="Take profit percentage", gt=0, le=10)
+    max_position_size_percent: float = Field(50.0, description="Maximum position size percentage", gt=0, le=100)
+    
+    # Trade Management
+    trade_cooldown_minutes: int = Field(30, description="Cooldown in minutes between trades", ge=0)
+    max_daily_trades: int = Field(10, description="Maximum trades per day", gt=0, le=50)
+    
+    # Order Book Analysis (for simple signals)
+    order_book_depth_threshold: float = Field(1.5, description="Order book imbalance threshold", gt=1.0)
 
-    # New optional tuning fields
-    htf_resolution: str = Field('4h', description="Higher timeframe resolution for confirmation")
-    htf_ema_length: int = Field(50, description="EMA length on higher timeframe", gt=1)
-    min_adx: float = Field(18.0, description="Minimum ADX to consider trend valid", ge=0)
-    min_atr_percent: float = Field(0.15, description="Minimum ATR% of price to consider volatility acceptable", ge=0)
-    volume_percentile_window: int = Field(50, description="Lookback window for volume percentile", gt=5)
-    volume_percentile_threshold: int = Field(70, description="Percentile threshold (0-100) for volume confirmation", ge=0, le=100)
-    trade_cooldown_minutes: int = Field(45, description="Cooldown in minutes between opposite trades", ge=0)
-
-    @validator('fast_ema_period')
-    def check_fast_ema_period(cls, v, values):
-        if 'slow_ema_period' in values and v >= values['slow_ema_period']:
-            raise ValueError("fast_ema_period must be less than slow_ema_period")
+    @validator('ema_fast_period')
+    def check_ema_fast_period(cls, v, values):
+        if 'ema_slow_period' in values and v >= values['ema_slow_period']:
+            raise ValueError("ema_fast_period must be less than ema_slow_period")
         return v
     
-    @validator('short_ema_period')
-    def check_short_ema_period(cls, v, values):
-        if 'long_ema_period' in values and v >= values['long_ema_period']:
-            raise ValueError("short_ema_period must be less than long_ema_period")
+    @validator('ema_slow_period')
+    def check_ema_slow_period(cls, v, values):
+        if 'ema_fast_period' in values and values['ema_fast_period'] >= v:
+            raise ValueError("ema_fast_period must be less than ema_slow_period")
         return v
     
-    @validator('slow_ema_period')
-    def check_slow_ema_period(cls, v, values):
-        if 'fast_ema_period' in values and values['fast_ema_period'] >= v:
-            raise ValueError("fast_ema_period must be less than slow_ema_period")
+    @validator('take_profit_percent')
+    def check_take_profit_percent(cls, v, values):
+        if 'stop_loss_percent' in values and v <= values['stop_loss_percent']:
+            raise ValueError("take_profit_percent must be greater than stop_loss_percent")
         return v
-    
-    @validator('long_ema_period')
-    def check_long_ema_period(cls, v, values):
-        if 'short_ema_period' in values and values['short_ema_period'] >= v:
-            raise ValueError("short_ema_period must be less than long_ema_period")
-        return v
-
 
 def get_strategy_schema(strategy_name: str):
     """
     Returns the Pydantic schema for a given strategy name.
     """
     schemas = {
-        StrategyEnum.StrategyMacdEmaCross.name: StrategyMacdEmaCrossSchema
-        # Add other strategy schemas here
+        'BreakoutStrategy': BreakoutStrategySchema,
+        StrategyEnum.StrategyMacdEmaCross.name: BreakoutStrategySchema,  # Map old name to new schema
     }
     return schemas.get(strategy_name, PydanticBaseModel)

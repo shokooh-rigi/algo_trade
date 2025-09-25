@@ -5,7 +5,8 @@ class StrategyEnum(Enum):
     """
     Enum for specifying the name of Strategies.
     """
-    StrategyMacdEmaCross = 'StrategyMacdEmaCross'
+    BreakoutStrategy = 'BreakoutStrategy'
+    StrategyMacdEmaCross = 'StrategyMacdEmaCross'  # Keep for backward compatibility
 
     @classmethod
     def choices(cls):
