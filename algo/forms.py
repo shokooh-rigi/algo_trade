@@ -28,7 +28,9 @@ class StrategyConfigAdminForm(forms.ModelForm):
             "trade_cooldown_minutes": 45
         },
         widget=forms.Textarea(attrs={
-            'rows': 8,
+            'rows': 15,
+            'cols': 80,
+            'style': 'width: 100%; max-width: 100%; height: 400px; font-family: monospace; font-size: 12px;',
         }),
         help_text='''JSON configuration for the selected strategy. Each parameter explained:
         
