@@ -44,7 +44,6 @@ class AccountBalanceInline(admin.TabularInline):
     extra = 0
     fields = ('asset', 'total_balance', 'unbalance_threshold')
     readonly_fields = ('created_at', 'updated_at')
-    raw_id_fields = ('asset',)
 
 
 @admin.register(Deal)
@@ -63,6 +62,8 @@ class DealAdmin(admin.ModelAdmin):
     readonly_fields = (
         'client_deal_id', 'created_at', 'updated_at'
     )
+    list_per_page = 25
+    ordering = ['-created_at']
     fieldsets = (
         (None, {
             'fields': ('client_deal_id', 'strategy_name', 'provider_name', 'market_symbol')
@@ -100,11 +101,12 @@ class OrderAdmin(admin.ModelAdmin):
     search_fields = (
         'client_order_id', 'symbol', 'deal__client_deal_id', 'store_client__name'
     )
-    raw_id_fields = ('store_client', 'deal',)
     readonly_fields = (
         'orig_qty', 'orig_sum', 'executed_sum', 'executed_percent',
         'timestamp_created_at', 'created_at', 'updated_at'
     )
+    list_per_page = 25
+    ordering = ['-created_at']
     fieldsets = (
         (None, {
             'fields': ('client_order_id', 'symbol', 'type', 'side', 'status', 'active', 'should_cancel')
@@ -151,6 +153,8 @@ class StoreClientAdmin(admin.ModelAdmin):
     readonly_fields = (
         'user_id', 'created_at', 'updated_at', 'deleted_at'
     )
+    list_per_page = 25
+    ordering = ['name']
     fieldsets = (
         (None, {
             'fields': ('name', 'provider', 'user_id', 'title')
@@ -190,6 +194,8 @@ class AssetAdmin(admin.ModelAdmin):
     readonly_fields = (
         'created_at', 'updated_at'
     )
+    list_per_page = 25
+    ordering = ['name']
     fieldsets = (
         (None, {
             'fields': ('name', 'provider')
@@ -218,10 +224,11 @@ class AccountBalanceAdmin(admin.ModelAdmin):
     search_fields = (
         'store_client__name', 'asset__name'
     )
-    raw_id_fields = ('store_client', 'asset',)
     readonly_fields = (
         'created_at', 'updated_at'
     )
+    list_per_page = 25
+    ordering = ['store_client__name', 'asset__name']
     fieldsets = (
         (None, {
             'fields': ('store_client', 'asset', 'total_balance', 'unbalance_threshold')
@@ -267,6 +274,8 @@ class MarketAdmin(admin.ModelAdmin):
     readonly_fields = (
         'timestamp_created_at', 'created_at', 'updated_at'
     )
+    list_per_page = 25
+    ordering = ['symbol']
     fieldsets = (
         (None, {
             'fields': ('symbol', 'provider', 'fa_name')
@@ -327,7 +336,8 @@ class StrategyConfigAdmin(admin.ModelAdmin):
     readonly_fields = (
         'created_at', 'updated_at'
     )
-    raw_id_fields = ('market', 'store_client')
+    list_per_page = 25
+    ordering = ['market__symbol', 'store_client__name']
 
     fieldsets = (
         (None, {
