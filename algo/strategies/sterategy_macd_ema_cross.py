@@ -401,25 +401,39 @@ class StrategyMacdEmaCross(StrategyInterface):
         self.price_history['high_float'] = self.price_history['high'].astype(float)
         self.price_history['low_float'] = self.price_history['low'].astype(float)
 
-        macd_output = ta.macd(
+        # Calculate MACD with proper error handling
+        macd_df = ta.macd(
             self.price_history['close_float'],
             fast=self.fast_ema_period,
             slow=self.slow_ema_period,
             signal=self.signal_ema_period,
-            append=True
+            append=False
         )
 
-        macd_col_name = f'MACD_{self.fast_ema_period}_{self.slow_ema_period}_{self.signal_ema_period}'
-        signal_col_name = f'MACDs_{self.fast_ema_period}_{self.slow_ema_period}_{self.signal_ema_period}'
-
-        if macd_col_name in self.price_history.columns and signal_col_name in self.price_history.columns:
-            self.price_history['macd'] = self.price_history[macd_col_name].apply(
-                lambda x: Decimal(str(x)) if pd.notna(x) else Decimal('0'))
-            self.price_history['signal'] = self.price_history[signal_col_name].apply(
-                lambda x: Decimal(str(x)) if pd.notna(x) else Decimal('0'))
+        if macd_df is not None and isinstance(macd_df, pd.DataFrame):
+            # Check for MACD columns in the returned DataFrame
+            macd_col = None
+            signal_col = None
+            
+            # Look for MACD column (usually named MACD_12_26_9 or similar)
+            for col in macd_df.columns:
+                if 'MACD_' in col and 'MACDs_' not in col:
+                    macd_col = col
+                elif 'MACDs_' in col:
+                    signal_col = col
+            
+            if macd_col and signal_col:
+                self.price_history['macd'] = macd_df[macd_col].apply(
+                    lambda x: Decimal(str(x)) if pd.notna(x) else Decimal('0'))
+                self.price_history['signal'] = macd_df[signal_col].apply(
+                    lambda x: Decimal(str(x)) if pd.notna(x) else Decimal('0'))
+                logger.info(f"MACD calculated successfully for {self.market_symbol}")
+            else:
+                logger.warning(f"MACD columns not found in DataFrame for {self.market_symbol}. Available columns: {list(macd_df.columns)}")
+                self.price_history['macd'] = Decimal('0')
+                self.price_history['signal'] = Decimal('0')
         else:
-            logger.warning(
-                f"MACD columns not found after calculation for {self.market_symbol}. Check pandas_ta version or parameters.")
+            logger.warning(f"MACD calculation failed for {self.market_symbol}. pandas_ta returned: {type(macd_df)}")
             self.price_history['macd'] = Decimal('0')
             self.price_history['signal'] = Decimal('0')
 

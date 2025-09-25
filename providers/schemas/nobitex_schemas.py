@@ -134,13 +134,13 @@ class NobitexOHLCVResponse(BaseModel):
     """
     Schema for the Nobitex historical OHLCV data response.
     """
-    s: str = Field(..., description="Status: 'ok' or 'error'")
-    t: List[int] = Field(..., description="Timestamps")
-    o: List[float] = Field(..., description="Open prices")
-    h: List[float] = Field(..., description="High prices")
-    l: List[float] = Field(..., description="Low prices")
-    c: List[float] = Field(..., description="Close prices")
-    v: List[float] = Field(..., description="Volumes")
+    s: str = Field(..., description="Status: 'ok', 'error', or 'no_data'")
+    t: Optional[List[int]] = Field(None, description="Timestamps")
+    o: Optional[List[float]] = Field(None, description="Open prices")
+    h: Optional[List[float]] = Field(None, description="High prices")
+    l: Optional[List[float]] = Field(None, description="Low prices")
+    c: Optional[List[float]] = Field(None, description="Close prices")
+    v: Optional[List[float]] = Field(None, description="Volumes")
     errmsg: Optional[str] = Field(None, description="Error message if s='error'")
 
 

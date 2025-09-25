@@ -150,18 +150,18 @@ class NobitexProvider(IProvider):
         Fetches historical OHLCV (candlestick) data for a given symbol and timeframe from Nobitex.
         """
         try:
-            # Convert resolution format for Nobitex
+            # Convert resolution format for Nobitex (use original format)
             resolution_map = {
-                "D": "1D",
-                "1D": "1D", 
-                "4h": "4H",
-                "1h": "1H",
-                "30m": "30M",
-                "15m": "15M",
-                "5m": "5M",
-                "1m": "1M"
+                "D": "D",
+                "1D": "D", 
+                "4h": "240",  # 4 hours in minutes
+                "1h": "60",   # 1 hour in minutes
+                "30m": "30",
+                "15m": "15",
+                "5m": "5",
+                "1m": "1"
             }
-            nobitex_resolution = resolution_map.get(resolution, "1D")
+            nobitex_resolution = resolution_map.get(resolution, "D")
             
             params = {
                 "symbol": symbol.upper(),
@@ -176,7 +176,7 @@ class NobitexProvider(IProvider):
 
             nobitex_ohlcv_response = NobitexOHLCVResponse.model_validate(response_json)
 
-            if nobitex_ohlcv_response.s == "ok":
+            if nobitex_ohlcv_response.s == "ok" and nobitex_ohlcv_response.t is not None:
                 ohlcv_data = []
                 num_candles = len(nobitex_ohlcv_response.t)
                 for i in range(num_candles):
@@ -190,8 +190,8 @@ class NobitexProvider(IProvider):
                     })
                 return ohlcv_data
             else:
-                logger.warning(
-                    f"Error fetching OHLCV data for {symbol} from Nobitex: {response_json.get('message', 'Unknown error')}")
+                error_msg = nobitex_ohlcv_response.errmsg or "Unknown error"
+                logger.warning(f"Nobitex OHLCV API returned error: {error_msg}")
                 return None
         except ValidationError as e:
             logger.error(f"Pydantic validation error fetching Nobitex OHLCV data for {symbol}: {e.errors()}",
