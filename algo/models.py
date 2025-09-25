@@ -85,6 +85,46 @@ class Deal(BaseModel):
         choices=ProcessedSideEnum.choices(),
         default=ProcessedSideEnum.NONE.value
     )
+    
+    # Risk Management Fields
+    stop_loss_price = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        null=True,
+        blank=True,
+        help_text="Stop-loss price for automatic exit"
+    )
+    take_profit_price = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        null=True,
+        blank=True,
+        help_text="Take-profit price for automatic exit"
+    )
+    stop_loss_order_id = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        help_text="Exchange order ID for stop-loss order"
+    )
+    take_profit_order_id = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        help_text="Exchange order ID for take-profit order"
+    )
+    trailing_stop_enabled = models.BooleanField(
+        default=False,
+        help_text="Whether trailing stop is enabled"
+    )
+    trailing_stop_distance = models.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Trailing stop distance percentage"
+    )
+    
     # Tracking related orders
     # This can be a one-to-one or one-to-many relationship depending on your strategy
     # For a simple buy/sell strategy, one-to-many is better.

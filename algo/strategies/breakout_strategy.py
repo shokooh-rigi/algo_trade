@@ -349,19 +349,35 @@ class BreakoutStrategy(StrategyInterface):
             # Calculate position size based on confidence and risk management
             position_size_percent = min(confidence * 50, 50)  # Max 50% position size
             
-            # Create deal
+            # Calculate stop-loss and take-profit prices
+            stop_loss_percent = getattr(self.strategy_params, 'stop_loss_percent', 0.3)
+            take_profit_percent = getattr(self.strategy_params, 'take_profit_percent', 0.6)
+            
+            if side == ProcessedSideEnum.BUY:
+                stop_loss_price = current_price * (1 - stop_loss_percent / 100)
+                take_profit_price = current_price * (1 + take_profit_percent / 100)
+            else:  # SELL
+                stop_loss_price = current_price * (1 + stop_loss_percent / 100)
+                take_profit_price = current_price * (1 - take_profit_percent / 100)
+            
+            # Create deal with risk management
             deal_data = {
                 'side': side.value,
                 'price': current_price,
                 'quantity': position_size_percent / 100,  # As percentage of balance
                 'reason': reason,
-                'confidence': confidence
+                'confidence': confidence,
+                'stop_loss_price': stop_loss_price,
+                'take_profit_price': take_profit_price,
+                'trailing_stop_enabled': False,  # Can be enabled based on strategy params
+                'trailing_stop_distance': None
             }
             
             # Update last trade time for cooldown
             self.last_trade_time = datetime.now()
             
             logger.info(f"Breakout trade executed: {side.value} {self.market_symbol} at {current_price} - {reason}")
+            logger.info(f"Stop-loss: {stop_loss_price}, Take-profit: {take_profit_price}")
             
             return deal_data
             

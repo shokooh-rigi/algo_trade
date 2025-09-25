@@ -11,6 +11,7 @@ from algo.services.asset_service import AssetService  # Assuming this is in algo
 from algo.services.deal_processor import DealProcessor
 from algo.services.inquiry_order_service import InquiryOrderService  # Assuming this is in algo.services
 from algo.services.store_markets_service import StoreMarketsFetcherService
+from algo.services.stop_order_monitor_service import StopOrderMonitorService
 from algo.strategies.strategy_factory import StrategyFactory
 from algo.strategies.enums import StrategyState, StrategyEnum
 from providers.provider_factory import ProviderFactory
@@ -243,6 +244,29 @@ def inquiry_orders_task(self):
     except Exception as e:
         logger.error(f"{settings.INQUIRY_ORDER_LOG_PREFIX} Inquiry orders task encountered an error: {e}",
                      exc_info=True)
+
+
+@shared_task(bind=True)
+def monitor_stop_orders_task(self):
+    """
+    Celery task to monitor stop-loss and take-profit orders.
+    Handles trailing stops and order management.
+    """
+    logger.info(f"{settings.STOP_ORDER_MONITOR_LOG_PREFIX} Starting stop order monitoring task.")
+    try:
+        system_configs = AdminSystemConfig.get_instance()
+        system_kill_switch = system_configs.get_value("kill_switch")
+        if system_kill_switch:
+            logger.warning(f"{settings.STOP_ORDER_MONITOR_LOG_PREFIX} Stop order monitoring is disabled by kill switch")
+            return 'Stop order monitoring is disabled by kill switch.'
+
+        monitor_service = StopOrderMonitorService()
+        result = monitor_service.monitor_active_deals()
+        logger.info(f"{settings.STOP_ORDER_MONITOR_LOG_PREFIX} Stop order monitoring task completed successfully.")
+        return result
+    except Exception as e:
+        logger.error(f"{settings.STOP_ORDER_MONITOR_LOG_PREFIX} Stop order monitoring task failed: {e}", exc_info=True)
+        raise
 
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=300)
