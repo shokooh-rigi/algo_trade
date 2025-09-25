@@ -17,6 +17,14 @@ from .strategies.enums import StrategyState
 logger = logging.getLogger(__name__)
 
 
+def health_check(request):
+    """Simple health check endpoint."""
+    return JsonResponse({
+        'status': 'healthy',
+        'timestamp': timezone.now().isoformat(),
+    })
+
+
 @method_decorator(staff_member_required, name='dispatch')
 class AdminDashboardView(View):
     """Enhanced admin dashboard with comprehensive trading metrics."""
@@ -121,3 +129,109 @@ class AdminDashboardView(View):
         ).count()
         
         return round((protected_deals / deals.count()) * 100, 1)
+
+
+@method_decorator(staff_member_required, name='dispatch')
+class SystemHealthView(View):
+    """System health monitoring API."""
+    
+    def get(self, request):
+        """Get system health metrics."""
+        try:
+            metrics = {
+                'timestamp': timezone.now().isoformat(),
+                'status': 'healthy',
+                'metrics': {
+                    'total_deals': Deal.objects.count(),
+                    'active_deals': Deal.objects.filter(is_active=True).count(),
+                    'total_orders': Order.objects.count(),
+                    'active_strategies': StrategyConfig.objects.filter(is_active=True).count(),
+                    'kill_switch_active': AdminSystemConfig.get_instance().kill_switch,
+                },
+            }
+            
+            return JsonResponse(metrics)
+            
+        except Exception as e:
+            logger.error(f"Error getting system health: {e}")
+            return JsonResponse({
+                'status': 'error',
+                'message': str(e)
+            }, status=500)
+
+
+@method_decorator(staff_member_required, name='dispatch')
+class RiskDashboardView(View):
+    """Risk management dashboard API."""
+    
+    def get(self, request):
+        """Get risk management metrics."""
+        try:
+            active_deals = Deal.objects.filter(is_active=True)
+            
+            risk_metrics = {
+                'timestamp': timezone.now().isoformat(),
+                'total_exposure': 0,
+                'active_deals': active_deals.count(),
+                'deals_with_stop_loss': active_deals.filter(stop_loss_price__isnull=False).count(),
+                'deals_with_take_profit': active_deals.filter(take_profit_price__isnull=False).count(),
+                'trailing_stops_active': active_deals.filter(trailing_stop_enabled=True).count(),
+            }
+            
+            return JsonResponse(risk_metrics)
+            
+        except Exception as e:
+            logger.error(f"Error getting risk metrics: {e}")
+            return JsonResponse({
+                'status': 'error',
+                'message': str(e)
+            }, status=500)
+
+
+@method_decorator(staff_member_required, name='dispatch')
+class EmergencyControlsView(View):
+    """Emergency controls for system management."""
+    
+    def get(self, request):
+        """Render emergency controls page."""
+        system_config = AdminSystemConfig.get_instance()
+        
+        context = {
+            'kill_switch_active': system_config.kill_switch,
+            'active_strategies': StrategyConfig.objects.filter(is_active=True).count(),
+            'active_deals': Deal.objects.filter(is_active=True).count(),
+        }
+        
+        return render(request, 'admin/emergency_controls.html', context)
+
+
+@method_decorator(staff_member_required, name='dispatch')
+class StrategyManagementView(View):
+    """Strategy management interface."""
+    
+    def get(self, request):
+        """Get strategy management data."""
+        strategies = StrategyConfig.objects.all()
+        
+        strategy_data = []
+        for strategy in strategies:
+            recent_deals = Deal.objects.filter(
+                strategy_name=strategy.strategy,
+                market_symbol=strategy.market.symbol,
+                created_at__gte=timezone.now() - timedelta(days=7)
+            )
+            
+            strategy_data.append({
+                'id': strategy.id,
+                'strategy': strategy.strategy,
+                'market': strategy.market.symbol,
+                'provider': strategy.store_client.provider,
+                'is_active': strategy.is_active,
+                'state': strategy.state,
+                'recent_trades': recent_deals.count(),
+                'active_trades': recent_deals.filter(is_active=True).count(),
+            })
+        
+        return JsonResponse({
+            'strategies': strategy_data
+        })

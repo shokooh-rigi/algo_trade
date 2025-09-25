@@ -179,6 +179,15 @@ ASSET_LOG_PREFIX = 'ASSET => '
 MARKET_DATA_LOG_PREFIX = 'MARKET =>'
 STOP_ORDER_MONITOR_LOG_PREFIX = 'STOP_MONITOR => '
 
+# Email Configuration
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@algo-trade.com')
+
 #redis config
 REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
 REDIS_PORT : int = int(os.getenv('REDIS_PORT', '6379'))

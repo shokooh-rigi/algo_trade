@@ -603,6 +603,44 @@ class AdminSystemConfig(BaseModel):
         default=DesiredBalanceAsset.USDT,
         max_length=5,
     )
+    
+    # Email Notification Settings
+    email_notifications_enabled = models.BooleanField(
+        default=True,
+        help_text="Enable email notifications for trading events."
+    )
+    admin_email = models.EmailField(
+        default="shokoohrigi22@gmail.com",
+        help_text="Admin email address for receiving notifications."
+    )
+    from_email = models.EmailField(
+        default="noreply@algo-trade.com",
+        help_text="From email address for sending notifications."
+    )
+    email_host = models.CharField(
+        max_length=255,
+        default="smtp.gmail.com",
+        help_text="SMTP server host for sending emails."
+    )
+    email_port = models.PositiveIntegerField(
+        default=587,
+        help_text="SMTP server port for sending emails."
+    )
+    email_use_tls = models.BooleanField(
+        default=True,
+        help_text="Use TLS for email connection."
+    )
+    email_host_user = models.EmailField(
+        blank=True,
+        null=True,
+        help_text="SMTP username for authentication."
+    )
+    email_host_password = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="SMTP password for authentication."
+    )
 
     class Meta:
         verbose_name = "Admin System Config"

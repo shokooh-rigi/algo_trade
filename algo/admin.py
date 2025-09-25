@@ -521,6 +521,15 @@ class AdminSystemConfigAdmin(admin.ModelAdmin):
         ('Global Controls', {
             'fields': ('put_same_order_base_in_every_order', 'kill_switch', 'desired_balance_asset_in_usdt_tmn_market')
         }),
+        ('Email Notifications', {
+            'fields': ('email_notifications_enabled', 'admin_email', 'from_email'),
+            'description': 'Configure email notifications for trading events'
+        }),
+        ('Email Server Settings', {
+            'fields': ('email_host', 'email_port', 'email_use_tls', 'email_host_user', 'email_host_password'),
+            'classes': ('collapse',),
+            'description': 'SMTP server configuration for sending emails'
+        }),
     )
     # Ensure only one instance can be managed
     def has_add_permission(self, request):

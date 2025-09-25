@@ -133,9 +133,21 @@ class StrategyProcessorService:
             result = {
                 "strategy_id": strategy_config.id,
                 "market": strategy_config.market.symbol,
-                "signal_result": signal_result,
+                "signal_result": "No signal" if not signal_result else "Signal generated",
                 "deal_generated": False
             }
+            
+            # If strategy generated a signal, create a deal
+            if signal_result and isinstance(signal_result, dict):
+                deal = self._create_deal_from_signal(signal_result, strategy_config)
+                if deal:
+                    result["deal_generated"] = True
+                    result["deal_id"] = str(deal.client_deal_id)
+                    
+                    # Send email notification
+                    from algo.services.notification_service import NotificationService
+                    notification_service = NotificationService()
+                    notification_service.send_deal_notification(deal)
 
             return result
 
@@ -238,4 +250,43 @@ class StrategyProcessorService:
 
         except Exception as e:
             logger.error(f"Error fetching market data for {strategy_config.market.symbol}: {e}", exc_info=True)
+            return None
+    
+    def _create_deal_from_signal(self, signal_data: Dict[str, Any], strategy_config: StrategyConfig) -> Optional[Deal]:
+        """
+        Create a Deal object from strategy signal data.
+        
+        Args:
+            signal_data: Dictionary containing deal information from strategy
+            strategy_config: The strategy configuration
+            
+        Returns:
+            Created Deal object or None if failed
+        """
+        try:
+            # Import Deal here to avoid circular imports
+            from algo.models import Deal
+            
+            # Create the deal
+            deal = Deal.objects.create(
+                strategy_name=strategy_config.strategy,
+                provider_name=strategy_config.store_client.provider,
+                market_symbol=strategy_config.market.symbol,
+                side=signal_data.get('side'),
+                price=signal_data.get('price'),
+                quantity=signal_data.get('quantity'),
+                status=StrategyState.STARTED.value,
+                is_active=True,
+                is_processed=False,
+                stop_loss_price=signal_data.get('stop_loss_price'),
+                take_profit_price=signal_data.get('take_profit_price'),
+                trailing_stop_enabled=signal_data.get('trailing_stop_enabled', False),
+                trailing_stop_distance=signal_data.get('trailing_stop_distance')
+            )
+            
+            logger.info(f"{settings.STRATEGY_PROCESSOR_LOG_PREFIX} Deal created: {deal.client_deal_id} for {strategy_config.strategy}")
+            return deal
+            
+        except Exception as e:
+            logger.error(f"{settings.STRATEGY_PROCESSOR_LOG_PREFIX} Error creating deal: {e}", exc_info=True)
             return None

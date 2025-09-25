@@ -4,6 +4,7 @@ from typing import Dict, Any, List
 from algo.models import Deal, AdminSystemConfig
 from algo.strategies.enums import StrategyState, ProcessedSideEnum
 from algo.services.order_management_service import OrderManagementService
+from algo.services.notification_service import NotificationService
 from algo_trade import settings
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,7 @@ class DealProcessorService:
     def __init__(self):
         self.system_configs = AdminSystemConfig.get_instance()
         self.order_management = OrderManagementService()
+        self.notification_service = NotificationService()
 
     def process_unprocessed_deals(self) -> Dict[str, Any]:
         """
