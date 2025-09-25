@@ -631,8 +631,8 @@ class StrategyConfig(SoftDeleteModel, BaseModel):
         help_text="A percentage of sensitivity for an order, must be between 0 (exclusive) and 1 (inclusive).",
     )
     initial_history_period_days = models.IntegerField(
-        default=30,
-
+        default=90,  # Increased to ensure enough data for MACD with slow=26 and long_ema=200
+        help_text="Number of days of historical data to fetch for indicator calculations"
     )
     resolution = models.CharField(
         choices=ResolutionEnum.choices(),

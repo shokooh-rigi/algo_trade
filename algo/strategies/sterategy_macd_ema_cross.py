@@ -188,7 +188,9 @@ class StrategyMacdEmaCross(StrategyInterface):
             new_candle_df = pd.DataFrame([new_candle_data], index=[new_candle_time])
 
             if not self.price_history.empty and new_candle_time in self.price_history.index:
-                self.price_history.loc[new_candle_time] = new_candle_df.loc[new_candle_time]
+                # Ensure data types are compatible
+                for col in ['open', 'high', 'low', 'close', 'volume']:
+                    self.price_history.loc[new_candle_time, col] = float(new_candle_data[col])
             else:
                 self.price_history = pd.concat([self.price_history, new_candle_df])
 
@@ -404,6 +406,14 @@ class StrategyMacdEmaCross(StrategyInterface):
         # Calculate MACD with proper error handling
         logger.info(f"Calculating MACD for {self.market_symbol} with {len(self.price_history)} data points")
         logger.info(f"MACD parameters: fast={self.fast_ema_period}, slow={self.slow_ema_period}, signal={self.signal_ema_period}")
+        
+        # Check if we have enough data for MACD calculation
+        min_required = max(self.slow_ema_period, self.signal_ema_period) + 10  # Extra buffer
+        if len(self.price_history) < min_required:
+            logger.warning(f"Not enough data for MACD calculation. Need at least {min_required} points, have {len(self.price_history)}")
+            self.price_history['macd'] = Decimal('0')
+            self.price_history['signal'] = Decimal('0')
+            return
         
         try:
             macd_df = ta.macd(
