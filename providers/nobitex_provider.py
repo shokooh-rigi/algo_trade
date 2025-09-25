@@ -173,6 +173,8 @@ class NobitexProvider(IProvider):
             response = requests.get(f"{self.BASE_URL}{self.OHLCV_HISTORY_PATH}", params=params)
             response.raise_for_status()
             response_json = response.json()
+            
+            logger.info(f"Nobitex API response for {symbol}: {response_json}")
 
             nobitex_ohlcv_response = NobitexOHLCVResponse.model_validate(response_json)
 

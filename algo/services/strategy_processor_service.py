@@ -172,10 +172,17 @@ class StrategyProcessorService:
                 from providers.nobitex_provider import NobitexProvider
                 nobitex_provider = NobitexProvider({})
                 
+                # Fetch more historical data to ensure we have recent data
+                # For daily resolution, fetch last 7 days to ensure we have recent data
+                if strategy_config.resolution == "D":
+                    time_range = 7 * 24 * 60 * 60  # 7 days
+                else:
+                    time_range = 24 * 60 * 60  # 1 day for other resolutions
+                
                 raw_ohlcv = nobitex_provider.fetch_ohlcv_data(
                     symbol=strategy_config.market.symbol,
                     resolution=strategy_config.resolution,
-                    from_timestamp=current_time_ts - (5 * 60),  # Last 5 minutes
+                    from_timestamp=current_time_ts - time_range,
                     to_timestamp=current_time_ts
                 )
 
