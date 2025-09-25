@@ -63,8 +63,7 @@ class WallexProvider(IProvider):
         """
         standardized_list = []
 
-        # Safely get the markets data from the nested structure
-        markets = raw_data.get('payload', {}).get('markets', {})
+        markets = raw_data.get('result', {}).get('symbols', {})
 
         # Iterate over the items in the markets dictionary
         for market_key, market_data in markets.items():
