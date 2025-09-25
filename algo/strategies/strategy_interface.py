@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 class StrategyInterface(ABC):
     @abstractmethod
-    def initialize(self, price_history):
+    def initialize(self):
         """Initialize strategy parameters."""
         pass
 

@@ -136,13 +136,6 @@ class StrategyProcessorService:
                 "signal_result": signal_result,
                 "deal_generated": False
             }
-            #todo: what is and where is :current_deal??? correct it if not exist
-            # Check if deal was generated, strategy_instance.current_deal do not have current_deal reference is not valid seems
-            if strategy_instance.current_deal and not strategy_instance.current_deal.is_processed:
-                result["deal_generated"] = True
-                result["deal_id"] = strategy_instance.current_deal.id
-                logger.info(f"{settings.STRATEGY_PROCESSOR_LOG_PREFIX} Deal {strategy_instance.current_deal.client_deal_id} "
-                           f"generated for strategy {strategy_config.id}")
 
             return result
 
