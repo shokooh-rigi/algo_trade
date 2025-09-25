@@ -130,22 +130,18 @@ class NobitexCandlestick(BaseModel):
     c: float # Close price
     v: float # Volume
 
-class NobitexOHLCVResponse(NobitexSuccessResponse):
+class NobitexOHLCVResponse(BaseModel):
     """
     Schema for the Nobitex historical OHLCV data response.
     """
-    # The fields are lists of values, corresponding to t, o, h, l, c, v
-    t: List[int]
-    o: List[float]
-    h: List[float]
-    l: List[float]
-    c: List[float]
-    v: List[float]
-
-
-# --- Common API Response for your system ---
-# These are the schemas you already have, potentially updated to use Pydantic types.
-# You might want to move these to a common `algo_trade/schemas.py` or similar.
+    s: str = Field(..., description="Status: 'ok' or 'error'")
+    t: List[int] = Field(..., description="Timestamps")
+    o: List[float] = Field(..., description="Open prices")
+    h: List[float] = Field(..., description="High prices")
+    l: List[float] = Field(..., description="Low prices")
+    c: List[float] = Field(..., description="Close prices")
+    v: List[float] = Field(..., description="Volumes")
+    errmsg: Optional[str] = Field(None, description="Error message if s='error'")
 
 
 class OrderResultSchema(BaseModel):

@@ -45,6 +45,7 @@ class NobitexProvider(IProvider):
             provider_config (Dict[str, Any]): Configuration details for the provider.
         """
         self.config = provider_config
+        self.provider_name = "Nobitex"
 
     def _get_auth_headers(self, api_key: str) -> Dict[str, str]:
         """
@@ -149,9 +150,22 @@ class NobitexProvider(IProvider):
         Fetches historical OHLCV (candlestick) data for a given symbol and timeframe from Nobitex.
         """
         try:
+            # Convert resolution format for Nobitex
+            resolution_map = {
+                "D": "1D",
+                "1D": "1D", 
+                "4h": "4H",
+                "1h": "1H",
+                "30m": "30M",
+                "15m": "15M",
+                "5m": "5M",
+                "1m": "1M"
+            }
+            nobitex_resolution = resolution_map.get(resolution, "1D")
+            
             params = {
                 "symbol": symbol.upper(),
-                "resolution": resolution,
+                "resolution": nobitex_resolution,
                 "from": from_timestamp,
                 "to": to_timestamp
             }
@@ -162,7 +176,7 @@ class NobitexProvider(IProvider):
 
             nobitex_ohlcv_response = NobitexOHLCVResponse.model_validate(response_json)
 
-            if nobitex_ohlcv_response.status == "ok":
+            if nobitex_ohlcv_response.s == "ok":
                 ohlcv_data = []
                 num_candles = len(nobitex_ohlcv_response.t)
                 for i in range(num_candles):

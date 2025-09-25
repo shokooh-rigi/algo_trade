@@ -423,17 +423,18 @@ class StrategyMacdEmaCross(StrategyInterface):
             self.price_history['macd'] = Decimal('0')
             self.price_history['signal'] = Decimal('0')
 
-        self.price_history['short_ema'] = ta.ema(
-            self.price_history['close_float'],
-            length=self.short_ema_period,
-            append=False
-        ).apply(lambda x: Decimal(str(x)) if pd.notna(x) else Decimal('0'))
+        # Calculate EMAs with proper error handling
+        short_ema = ta.ema(self.price_history['close_float'], length=self.short_ema_period, append=False)
+        if short_ema is not None:
+            self.price_history['short_ema'] = short_ema.apply(lambda x: Decimal(str(x)) if pd.notna(x) else Decimal('0'))
+        else:
+            self.price_history['short_ema'] = Decimal('0')
 
-        self.price_history['long_ema'] = ta.ema(
-            self.price_history['close_float'],
-            length=self.long_ema_period,
-            append=False
-        ).apply(lambda x: Decimal(str(x)) if pd.notna(x) else Decimal('0'))
+        long_ema = ta.ema(self.price_history['close_float'], length=self.long_ema_period, append=False)
+        if long_ema is not None:
+            self.price_history['long_ema'] = long_ema.apply(lambda x: Decimal(str(x)) if pd.notna(x) else Decimal('0'))
+        else:
+            self.price_history['long_ema'] = Decimal('0')
 
         # ADX and ATR for chop/volatility filters
         adx_df = ta.adx(high=self.price_history['high_float'], low=self.price_history['low_float'], close=self.price_history['close_float'])
@@ -443,7 +444,7 @@ class StrategyMacdEmaCross(StrategyInterface):
             self.price_history['adx'] = Decimal('0')
 
         atr_series = ta.atr(high=self.price_history['high_float'], low=self.price_history['low_float'], close=self.price_history['close_float'])
-        if atr_series is not None:
+        if atr_series is not None and len(atr_series) > 0:
             self.price_history['atr'] = atr_series.apply(lambda x: Decimal(str(x)) if pd.notna(x) else Decimal('0'))
         else:
             self.price_history['atr'] = Decimal('0')
