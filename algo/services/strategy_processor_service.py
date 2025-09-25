@@ -164,35 +164,48 @@ class StrategyProcessorService:
             order_book_response = provider_instance.fetch_order_book_by_symbol(strategy_config.market.symbol)
             order_book = order_book_response.get('result', {}) if isinstance(order_book_response, dict) else {}
 
-            # Fetch latest OHLCV data
-            current_time_ts = int(time.time())
-            raw_ohlcv = provider_instance.fetch_ohlcv_data(
-                symbol=strategy_config.market.symbol,
-                resolution=strategy_config.resolution,
-                from_timestamp=current_time_ts - (5 * 60),  # Last 5 minutes
-                to_timestamp=current_time_ts
-            )
+            # Fetch latest OHLCV data only if strategy needs historical data
+            if strategy_config.need_historical_data:
+                current_time_ts = int(time.time())
+                raw_ohlcv = provider_instance.fetch_ohlcv_data(
+                    symbol=strategy_config.market.symbol,
+                    resolution=strategy_config.resolution,
+                    from_timestamp=current_time_ts - (5 * 60),  # Last 5 minutes
+                    to_timestamp=current_time_ts
+                )
 
-            if not raw_ohlcv:
-                logger.warning(f"Could not fetch OHLCV data for {strategy_config.market.symbol}")
-                return None
+                if not raw_ohlcv:
+                    logger.warning(f"Could not fetch OHLCV data for {strategy_config.market.symbol}")
+                    return None
 
-            latest_candle = raw_ohlcv[-1]
-            
-            # Validate data
-            if latest_candle.get('close', 0) <= 0:
-                logger.error(f"Invalid close price for {strategy_config.market.symbol}: {latest_candle.get('close')}")
-                return None
+                latest_candle = raw_ohlcv[-1]
+                
+                # Validate data
+                if latest_candle.get('close', 0) <= 0:
+                    logger.error(f"Invalid close price for {strategy_config.market.symbol}: {latest_candle.get('close')}")
+                    return None
 
-            return {
-                'time': latest_candle['time'],
-                'open': Decimal(str(latest_candle['open'])),
-                'high': Decimal(str(latest_candle['high'])),
-                'low': Decimal(str(latest_candle['low'])),
-                'close': Decimal(str(latest_candle['close'])),
-                'volume': Decimal(str(latest_candle['volume'])),
-                'order_book': order_book
-            }
+                return {
+                    'time': latest_candle['time'],
+                    'open': Decimal(str(latest_candle['open'])),
+                    'high': Decimal(str(latest_candle['high'])),
+                    'low': Decimal(str(latest_candle['low'])),
+                    'close': Decimal(str(latest_candle['close'])),
+                    'volume': Decimal(str(latest_candle['volume'])),
+                    'order_book': order_book
+                }
+            else:
+                # For strategies that don't need historical data, return minimal data
+                logger.info(f"Strategy {strategy_config.id} doesn't require historical data. Returning minimal market data.")
+                return {
+                    'time': int(time.time()),
+                    'open': Decimal('0'),
+                    'high': Decimal('0'),
+                    'low': Decimal('0'),
+                    'close': Decimal('0'),
+                    'volume': Decimal('0'),
+                    'order_book': order_book
+                }
 
         except Exception as e:
             logger.error(f"Error fetching market data for {strategy_config.market.symbol}: {e}", exc_info=True)
