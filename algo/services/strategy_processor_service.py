@@ -167,7 +167,12 @@ class StrategyProcessorService:
             # Fetch latest OHLCV data only if strategy needs historical data
             if strategy_config.need_historical_data:
                 current_time_ts = int(time.time())
-                raw_ohlcv = provider_instance.fetch_ohlcv_data(
+                
+                # Use Nobitex for historical data (hybrid approach)
+                from providers.nobitex_provider import NobitexProvider
+                nobitex_provider = NobitexProvider({})
+                
+                raw_ohlcv = nobitex_provider.fetch_ohlcv_data(
                     symbol=strategy_config.market.symbol,
                     resolution=strategy_config.resolution,
                     from_timestamp=current_time_ts - (5 * 60),  # Last 5 minutes
@@ -195,14 +200,31 @@ class StrategyProcessorService:
                     'order_book': order_book
                 }
             else:
-                # For strategies that don't need historical data, return minimal data
-                logger.info(f"Strategy {strategy_config.id} doesn't require historical data. Returning minimal market data.")
+                # For strategies that don't need historical data, use order book for real-time price
+                logger.info(f"Strategy {strategy_config.id} doesn't require historical data. Using order book prices.")
+                
+                # Extract bid/ask prices from order book
+                bid_price = Decimal('0')
+                ask_price = Decimal('0')
+                
+                if order_book and 'bids' in order_book and 'asks' in order_book:
+                    bids = order_book.get('bids', [])
+                    asks = order_book.get('asks', [])
+                    
+                    if bids:
+                        bid_price = Decimal(str(bids[0][0]))  # Best bid price
+                    if asks:
+                        ask_price = Decimal(str(asks[0][0]))  # Best ask price
+                
+                # Use mid-price as close price
+                mid_price = (bid_price + ask_price) / 2 if bid_price > 0 and ask_price > 0 else Decimal('0')
+                
                 return {
                     'time': int(time.time()),
-                    'open': Decimal('0'),
-                    'high': Decimal('0'),
-                    'low': Decimal('0'),
-                    'close': Decimal('0'),
+                    'open': mid_price,
+                    'high': ask_price if ask_price > 0 else mid_price,
+                    'low': bid_price if bid_price > 0 else mid_price,
+                    'close': mid_price,
                     'volume': Decimal('0'),
                     'order_book': order_book
                 }

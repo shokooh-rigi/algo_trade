@@ -179,8 +179,7 @@ class StrategyMacdEmaCross(StrategyInterface):
         # Check if we have historical data capability
         if not self.strategy_config.need_historical_data:
             logger.info(f"Strategy {self.strategy_config_id} running without historical data. Using real-time data only.")
-            # For now, return a message indicating the strategy is running but without full functionality
-            return "Strategy running without historical data - limited functionality"
+            return self._execute_simple_strategy(latest_data)
 
         # 1. Update historical data with latest candle if needed
         if self.strategy_config.need_historical_data:
@@ -295,20 +294,98 @@ class StrategyMacdEmaCross(StrategyInterface):
         logger.debug(f"No strong signal for {self.market_symbol}.")
         return "No signal"
 
-    def _fetch_historical_data(self, start_ts: int, end_ts: int, resolution: str) -> Optional[List[Dict[str, Any]]]:
+    def _execute_simple_strategy(self, latest_data: Dict[str, Any]) -> str:
         """
-        Fetches historical OHLCV data from the provider.
+        Execute a simplified strategy using only real-time data from order book.
+        This is used when historical data is not available.
         """
         try:
-            ohlcv_data = self.provider_instance.fetch_ohlcv_data(
+            # Extract order book data
+            order_book = latest_data.get('order_book', {})
+            current_price = latest_data.get('close', Decimal('0'))
+            
+            if current_price <= 0:
+                logger.warning(f"Invalid price data for {self.market_symbol}: {current_price}")
+                return "Invalid price data"
+            
+            # Extract bid/ask data
+            bids = order_book.get('bids', [])
+            asks = order_book.get('asks', [])
+            
+            if not bids or not asks:
+                logger.warning(f"No order book data available for {self.market_symbol}")
+                return "No order book data"
+            
+            best_bid = Decimal(str(bids[0][0]))
+            best_ask = Decimal(str(asks[0][0]))
+            bid_volume = Decimal(str(bids[0][1])) if len(bids[0]) > 1 else Decimal('0')
+            ask_volume = Decimal(str(asks[0][1])) if len(asks[0]) > 1 else Decimal('0')
+            
+            # Calculate order book imbalance
+            total_bid_volume = sum(Decimal(str(bid[1])) for bid in bids[:5])  # Top 5 bids
+            total_ask_volume = sum(Decimal(str(ask[1])) for ask in asks[:5])  # Top 5 asks
+            
+            if total_bid_volume + total_ask_volume > 0:
+                bid_ratio = total_bid_volume / (total_bid_volume + total_ask_volume)
+            else:
+                bid_ratio = Decimal('0.5')
+            
+            logger.info(f"Order book analysis for {self.market_symbol}: "
+                       f"Price: {current_price}, Bid ratio: {bid_ratio:.3f}, "
+                       f"Threshold: {self.order_book_depth_threshold}")
+            
+            # Simple trading logic based on order book imbalance
+            if bid_ratio >= self.order_book_depth_threshold:
+                # Strong buying pressure
+                if not self.current_deal or self.current_deal.side == ProcessedSideEnum.SELL.value:
+                    if self._cooldown_ok():
+                        logger.info(f"BUY signal for {self.market_symbol} based on order book imbalance: {bid_ratio:.3f}")
+                        self._generate_deal(ProcessedSideEnum.BUY, current_price)
+                        self._last_trade_ts = int(time.time())
+                        return "Buy signal generated (order book)"
+            
+            elif bid_ratio <= (1 - self.order_book_depth_threshold):
+                # Strong selling pressure
+                if self.current_deal and self.current_deal.side == ProcessedSideEnum.BUY.value:
+                    if self._cooldown_ok():
+                        logger.info(f"SELL signal for {self.market_symbol} based on order book imbalance: {bid_ratio:.3f}")
+                        self._generate_deal(ProcessedSideEnum.SELL, current_price)
+                        self._last_trade_ts = int(time.time())
+                        return "Sell signal generated (order book)"
+            
+            logger.debug(f"No signal for {self.market_symbol}. Bid ratio: {bid_ratio:.3f}")
+            return "No signal (order book analysis)"
+            
+        except Exception as e:
+            logger.error(f"Error in simple strategy execution for {self.market_symbol}: {e}", exc_info=True)
+            return f"Error: {str(e)}"
+
+    def _fetch_historical_data(self, start_ts: int, end_ts: int, resolution: str) -> Optional[List[Dict[str, Any]]]:
+        """
+        Fetches historical OHLCV data from Nobitex (for indicators) while trading on Wallex.
+        This hybrid approach allows us to use technical indicators while trading on the preferred exchange.
+        """
+        try:
+            # Use Nobitex for historical data (better for indicators)
+            from providers.nobitex_provider import NobitexProvider
+            
+            nobitex_provider = NobitexProvider({})
+            ohlcv_data = nobitex_provider.fetch_ohlcv_data(
                 symbol=self.market_symbol,
                 resolution=resolution,
                 from_timestamp=start_ts,
                 to_timestamp=end_ts
             )
-            return ohlcv_data
+            
+            if ohlcv_data:
+                logger.info(f"Successfully fetched {len(ohlcv_data)} historical candles from Nobitex for {self.market_symbol}")
+                return ohlcv_data
+            else:
+                logger.warning(f"No historical data available from Nobitex for {self.market_symbol}")
+                return None
+                
         except Exception as e:
-            logger.error(f"Error fetching historical OHLCV data for {self.market_symbol}: {e}", exc_info=True)
+            logger.error(f"Error fetching historical data from Nobitex for {self.market_symbol}: {e}", exc_info=True)
             return None
 
     def _calculate_all_indicators(self) -> None:
